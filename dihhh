@@ -194,10 +194,13 @@ do
     local sectionProto = {}
     local controlCommon = {}
 
-    local function makeToggleButton(parent, label, default, cb)
+    local function makeToggleButton(parent, label, default, cb, desc)
+        local hasDesc = desc and desc ~= ""
+        local frameHeight = hasDesc and 52 or 36
+        
         local btn = new("TextButton", {
             AutoButtonColor = false,
-            Size = UDim2.new(1, 0, 0, 36),
+            Size = UDim2.new(1, 0, 0, frameHeight),
             BackgroundColor3 = Color3.fromRGB(40, 40, 46),
             BorderSizePixel = 0,
             Text = "",
@@ -209,15 +212,32 @@ do
 
         local lbl = new("TextLabel", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(1, -70, 1, 0),
-            Position = UDim2.new(0, 12, 0, 0),
+            Size = UDim2.new(1, -70, 0, hasDesc and 20 or frameHeight),
+            Position = UDim2.new(0, 12, 0, hasDesc and 6 or 0),
             Font = Enum.Font.Gotham,
             TextSize = 14,
             TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = hasDesc and Enum.TextYAlignment.Top or Enum.TextYAlignment.Center,
             TextColor3 = Color3.fromRGB(230, 230, 230),
             Text = label
         })
         lbl.Parent = btn
+        
+        -- Description label
+        if hasDesc then
+            local descLbl = new("TextLabel", {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, -70, 0, 18),
+                Position = UDim2.new(0, 12, 0, 26),
+                Font = Enum.Font.Gotham,
+                TextSize = 11,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextColor3 = Color3.fromRGB(150, 150, 160),
+                Text = desc,
+                TextTruncate = Enum.TextTruncate.AtEnd
+            })
+            descLbl.Parent = btn
+        end
 
         local pill = new("Frame", {
             Size = UDim2.new(0, 48, 0, 20),
@@ -330,9 +350,12 @@ do
         }
     end
 
-    local function makeSlider(parent, label, min, max, default, cb, step)
+    local function makeSlider(parent, label, min, max, default, cb, step, desc)
+        local hasDesc = desc and desc ~= ""
+        local frameHeight = hasDesc and 56 or 44
+        
         local frame = new("Frame", {
-            Size = UDim2.new(1, 0, 0, 44),
+            Size = UDim2.new(1, 0, 0, frameHeight),
             BackgroundTransparency = 1
         })
         frame.Parent = parent
@@ -349,9 +372,25 @@ do
         })
         lbl.Parent = frame
 
+        -- Description label
+        if hasDesc then
+            local descLbl = new("TextLabel", {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 12),
+                Position = UDim2.new(0, 0, 0, 16),
+                Font = Enum.Font.Gotham,
+                TextSize = 10,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextColor3 = Color3.fromRGB(150, 150, 160),
+                Text = desc,
+                TextTruncate = Enum.TextTruncate.AtEnd
+            })
+            descLbl.Parent = frame
+        end
+
         local bar = new("Frame", {
             Size = UDim2.new(1, 0, 0, 14),
-            Position = UDim2.new(0, 0, 0, 24),
+            Position = UDim2.new(0, 0, 0, hasDesc and 32 or 24),
             BackgroundColor3 = Color3.fromRGB(46, 46, 52),
             BorderSizePixel = 0
         })
@@ -449,17 +488,20 @@ do
         }
     end
 
-    local function makeDropdown(parent, label, values, default, cb, multiSelect)
+    local function makeDropdown(parent, label, values, default, cb, multiSelect, desc)
+        local hasDesc = desc and desc ~= ""
+        local frameHeight = hasDesc and 52 or 40
+        
         -- Main container that expands when dropdown opens
         local container = new("Frame", {
-            Size = UDim2.new(1, 0, 0, 40),
+            Size = UDim2.new(1, 0, 0, frameHeight),
             BackgroundTransparency = 1,
             ClipsDescendants = false
         })
         container.Parent = parent
         
         local frame = new("Frame", {
-            Size = UDim2.new(1, 0, 0, 40),
+            Size = UDim2.new(1, 0, 0, frameHeight),
             BackgroundColor3 = Color3.fromRGB(40, 40, 46),
             BorderSizePixel = 0
         })
@@ -470,20 +512,37 @@ do
 
         local lbl = new("TextLabel", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(0.5, -12, 0, 40),
-            Position = UDim2.new(0, 12, 0, 0),
+            Size = UDim2.new(0.4, -12, 0, hasDesc and 20 or frameHeight),
+            Position = UDim2.new(0, 12, 0, hasDesc and 6 or 0),
             Font = Enum.Font.Gotham,
             TextSize = 14,
             TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = hasDesc and Enum.TextYAlignment.Top or Enum.TextYAlignment.Center,
             TextColor3 = Color3.fromRGB(230, 230, 230),
             Text = label
         })
         lbl.Parent = frame
         
+        -- Description label
+        if hasDesc then
+            local descLbl = new("TextLabel", {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(0.4, -12, 0, 18),
+                Position = UDim2.new(0, 12, 0, 26),
+                Font = Enum.Font.Gotham,
+                TextSize = 11,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextColor3 = Color3.fromRGB(150, 150, 160),
+                Text = desc,
+                TextTruncate = Enum.TextTruncate.AtEnd
+            })
+            descLbl.Parent = frame
+        end
+        
         -- Arrow indicator
         local arrow = new("TextLabel", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(0, 20, 0, 40),
+            Size = UDim2.new(0, 20, 0, frameHeight),
             Position = UDim2.new(1, -28, 0, 0),
             Font = Enum.Font.GothamBold,
             TextSize = 12,
@@ -494,13 +553,14 @@ do
 
         local valLbl = new("TextLabel", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(0.5, -40, 0, 40),
-            Position = UDim2.new(0.5, 0, 0, 0),
+            Size = UDim2.new(0.55, -40, 0, frameHeight),
+            Position = UDim2.new(0.4, 0, 0, 0),
             Font = Enum.Font.Gotham,
             TextSize = 14,
             TextXAlignment = Enum.TextXAlignment.Right,
             TextColor3 = Color3.fromRGB(200, 200, 200),
-            Text = type(default) == "table" and table.concat(default, ", ") or (default and tostring(default) or (values and values[1] and tostring(values[1]) or ""))
+            Text = type(default) == "table" and table.concat(default, ", ") or (default and tostring(default) or (values and values[1] and tostring(values[1]) or "")),
+            TextTruncate = Enum.TextTruncate.AtEnd
         })
         valLbl.Parent = frame
 
@@ -518,7 +578,7 @@ do
 
         local dropdownHolder = new("ScrollingFrame", {
             Size = UDim2.new(1, 0, 0, 0),
-            Position = UDim2.new(0, 0, 0, 44),
+            Position = UDim2.new(0, 0, 0, frameHeight + 4),
             BackgroundColor3 = Color3.fromRGB(28, 28, 32),
             BorderSizePixel = 0,
             Visible = false,
@@ -682,14 +742,14 @@ do
                 dropdownHolder.BackgroundTransparency = 1
                 arrow.Text = "▲"
                 -- Animate container expansion and fade in
-                local expandTween = TweenService:Create(container, tweenInfo, {Size = UDim2.new(1, 0, 0, 44 + dropdownHeight + 4)})
+                local expandTween = TweenService:Create(container, tweenInfo, {Size = UDim2.new(1, 0, 0, frameHeight + dropdownHeight + 4)})
                 local fadeTween = TweenService:Create(dropdownHolder, tweenInfo, {BackgroundTransparency = 0})
                 expandTween:Play()
                 fadeTween:Play()
             else
                 arrow.Text = "▼"
                 -- Animate container collapse and fade out
-                local collapseTween = TweenService:Create(container, tweenInfo, {Size = UDim2.new(1, 0, 0, 40)})
+                local collapseTween = TweenService:Create(container, tweenInfo, {Size = UDim2.new(1, 0, 0, frameHeight)})
                 local fadeTween = TweenService:Create(dropdownHolder, tweenInfo, {BackgroundTransparency = 1})
                 collapseTween:Play()
                 fadeTween:Play()
@@ -783,9 +843,12 @@ do
         }
     end
 
-    local function makeInput(parent, label, placeholder, default, cb)
+    local function makeInput(parent, label, placeholder, default, cb, desc)
+        local hasDesc = desc and desc ~= ""
+        local frameHeight = hasDesc and 52 or 40
+        
         local frame = new("Frame", {
-            Size = UDim2.new(1, 0, 0, 40),
+            Size = UDim2.new(1, 0, 0, frameHeight),
             BackgroundColor3 = Color3.fromRGB(40, 40, 46),
             BorderSizePixel = 0
         })
@@ -795,19 +858,36 @@ do
 
         local lbl = new("TextLabel", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(0.4, -12, 1, 0),
-            Position = UDim2.new(0, 12, 0, 0),
+            Size = UDim2.new(0.4, -12, 0, hasDesc and 20 or frameHeight),
+            Position = UDim2.new(0, 12, 0, hasDesc and 6 or 0),
             Font = Enum.Font.Gotham,
             TextSize = 14,
             TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = hasDesc and Enum.TextYAlignment.Top or Enum.TextYAlignment.Center,
             TextColor3 = Color3.fromRGB(230, 230, 230),
             Text = label
         })
         lbl.Parent = frame
 
+        -- Description label
+        if hasDesc then
+            local descLbl = new("TextLabel", {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(0.4, -12, 0, 18),
+                Position = UDim2.new(0, 12, 0, 26),
+                Font = Enum.Font.Gotham,
+                TextSize = 11,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextColor3 = Color3.fromRGB(150, 150, 160),
+                Text = desc,
+                TextTruncate = Enum.TextTruncate.AtEnd
+            })
+            descLbl.Parent = frame
+        end
+
         local box = new("TextBox", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(0.6, -12, 1, 0),
+            Size = UDim2.new(0.6, -12, 0, frameHeight),
             Position = UDim2.new(0.4, 0, 0, 0),
             Font = Enum.Font.Gotham,
             TextSize = 14,
@@ -921,28 +1001,78 @@ do
         }
     end
 
-    local function makeButton(parent, label, cb)
-        local btn = new("TextButton", {
-            AutoButtonColor = false,
-            Size = UDim2.new(1, 0, 0, 36),
-            BackgroundColor3 = Color3.fromRGB(55, 55, 65),
-            BorderSizePixel = 0,
-            Font = Enum.Font.GothamBold,
-            TextSize = 15,
-            TextColor3 = Color3.fromRGB(255, 255, 255),
+    local function makeButton(parent, label, cb, desc)
+        local hasDesc = desc and desc ~= ""
+        local frameHeight = hasDesc and 52 or 36
+        
+        local frame = new("Frame", {
+            Size = UDim2.new(1, 0, 0, frameHeight),
+            BackgroundColor3 = Color3.fromRGB(40, 40, 46),
+            BorderSizePixel = 0
+        })
+        round(frame, 10)
+        gradient(frame, Color3.fromRGB(48, 48, 60), Color3.fromRGB(38, 38, 44), 90)
+        stroke(frame, Color3.fromRGB(255, 255, 255), 1, 0.75)
+        frame.Parent = parent
+        
+        local lbl = new("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, -80, 0, hasDesc and 20 or frameHeight),
+            Position = UDim2.new(0, 12, 0, hasDesc and 6 or 0),
+            Font = Enum.Font.Gotham,
+            TextSize = 14,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = hasDesc and Enum.TextYAlignment.Top or Enum.TextYAlignment.Center,
+            TextColor3 = Color3.fromRGB(230, 230, 230),
             Text = label
         })
-        round(btn, 10)
-        gradient(btn, Color3.fromRGB(65, 65, 80), Color3.fromRGB(45, 45, 55), 90)
-        stroke(btn, Color3.fromRGB(255,255,255), 1, 0.6)
-        btn.Parent = parent
+        lbl.Parent = frame
+        
+        -- Description label
+        if hasDesc then
+            local descLbl = new("TextLabel", {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, -80, 0, 18),
+                Position = UDim2.new(0, 12, 0, 26),
+                Font = Enum.Font.Gotham,
+                TextSize = 11,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextColor3 = Color3.fromRGB(150, 150, 160),
+                Text = desc,
+                TextTruncate = Enum.TextTruncate.AtEnd
+            })
+            descLbl.Parent = frame
+        end
+
+        local btn = new("TextButton", {
+            AutoButtonColor = false,
+            Size = UDim2.new(0, 60, 0, 26),
+            Position = UDim2.new(1, -68, 0.5, 0),
+            AnchorPoint = Vector2.new(0, 0.5),
+            BackgroundColor3 = Color3.fromRGB(60, 60, 70),
+            BorderSizePixel = 0,
+            Font = Enum.Font.GothamBold,
+            TextSize = 12,
+            TextColor3 = Color3.fromRGB(255, 255, 255),
+            Text = "Run"
+        })
+        round(btn, 8)
+        stroke(btn, Color3.fromRGB(255,255,255), 1, 0.5)
+        btn.Parent = frame
 
         -- Hover effects
         btn.MouseEnter:Connect(function()
-            btn.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
+            btn.BackgroundColor3 = Color3.fromRGB(80, 80, 95)
         end)
         btn.MouseLeave:Connect(function()
-            btn.BackgroundColor3 = Color3.fromRGB(55, 55, 65)
+            btn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+        end)
+        
+        frame.MouseEnter:Connect(function()
+            frame.BackgroundColor3 = Color3.fromRGB(50, 50, 56)
+        end)
+        frame.MouseLeave:Connect(function()
+            frame.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
         end)
 
         -- Track scrolling for button to prevent accidental clicks
@@ -984,25 +1114,30 @@ do
             if cb then task.spawn(cb) end
         end)
 
-        return btn
+        return {
+            Frame = frame,
+            Button = btn
+        }
     end
 
-    local function makeColorpicker(parent, label, default, cb)
+    local function makeColorpicker(parent, label, default, cb, desc)
         local currentColor = default or Color3.fromRGB(255, 255, 255)
         local open = false
         local locked = false
         local pickerHeight = 140
+        local hasDesc = desc and desc ~= ""
+        local frameHeight = hasDesc and 52 or 40
         
         -- Main container that expands when colorpicker opens
         local container = new("Frame", {
-            Size = UDim2.new(1, 0, 0, 40),
+            Size = UDim2.new(1, 0, 0, frameHeight),
             BackgroundTransparency = 1,
             ClipsDescendants = false
         })
         container.Parent = parent
         
         local frame = new("Frame", {
-            Size = UDim2.new(1, 0, 0, 40),
+            Size = UDim2.new(1, 0, 0, frameHeight),
             BackgroundColor3 = Color3.fromRGB(40, 40, 46),
             BorderSizePixel = 0
         })
@@ -1013,15 +1148,32 @@ do
 
         local lbl = new("TextLabel", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(1, -60, 0, 40),
-            Position = UDim2.new(0, 12, 0, 0),
+            Size = UDim2.new(1, -60, 0, hasDesc and 20 or frameHeight),
+            Position = UDim2.new(0, 12, 0, hasDesc and 6 or 0),
             Font = Enum.Font.Gotham,
             TextSize = 14,
             TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = hasDesc and Enum.TextYAlignment.Top or Enum.TextYAlignment.Center,
             TextColor3 = Color3.fromRGB(230, 230, 230),
             Text = label
         })
         lbl.Parent = frame
+
+        -- Description label
+        if hasDesc then
+            local descLbl = new("TextLabel", {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, -60, 0, 18),
+                Position = UDim2.new(0, 12, 0, 26),
+                Font = Enum.Font.Gotham,
+                TextSize = 11,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextColor3 = Color3.fromRGB(150, 150, 160),
+                Text = desc,
+                TextTruncate = Enum.TextTruncate.AtEnd
+            })
+            descLbl.Parent = frame
+        end
 
         -- Color preview box
         local colorPreview = new("Frame", {
@@ -1038,7 +1190,7 @@ do
         -- Picker panel for color selection (inside container, below frame)
         local pickerPanel = new("Frame", {
             Size = UDim2.new(1, 0, 0, pickerHeight),
-            Position = UDim2.new(0, 0, 0, 44),
+            Position = UDim2.new(0, 0, 0, frameHeight + 4),
             BackgroundColor3 = Color3.fromRGB(28, 28, 32),
             BorderSizePixel = 0,
             Visible = false,
@@ -1181,13 +1333,13 @@ do
                 pickerPanel.Visible = true
                 pickerPanel.BackgroundTransparency = 1
                 -- Animate container expansion and fade in
-                local expandTween = TweenService:Create(container, tweenInfo, {Size = UDim2.new(1, 0, 0, 44 + pickerHeight + 4)})
+                local expandTween = TweenService:Create(container, tweenInfo, {Size = UDim2.new(1, 0, 0, frameHeight + pickerHeight + 4)})
                 local fadeTween = TweenService:Create(pickerPanel, tweenInfo, {BackgroundTransparency = 0})
                 expandTween:Play()
                 fadeTween:Play()
             else
                 -- Animate container collapse and fade out
-                local collapseTween = TweenService:Create(container, tweenInfo, {Size = UDim2.new(1, 0, 0, 40)})
+                local collapseTween = TweenService:Create(container, tweenInfo, {Size = UDim2.new(1, 0, 0, frameHeight)})
                 local fadeTween = TweenService:Create(pickerPanel, tweenInfo, {BackgroundTransparency = 1})
                 collapseTween:Play()
                 fadeTween:Play()
@@ -1332,7 +1484,7 @@ do
         return makeParagraph(self._container, opts.Title, opts.Desc, opts.Buttons)
     end
     function sectionProto:Toggle(opts)
-        local t = makeToggleButton(self._container, opts.Title or opts.Flag or "Toggle", opts.Default, opts.Callback)
+        local t = makeToggleButton(self._container, opts.Title or opts.Flag or "Toggle", opts.Default, opts.Callback, opts.Desc)
         return setmetatable(t, {__index = controlCommon})
     end
     function sectionProto:Slider(opts)
@@ -1343,21 +1495,21 @@ do
             maxVal = opts.Value.Max or maxVal
             defaultVal = opts.Value.Default or defaultVal
         end
-        local s = makeSlider(self._container, opts.Title or "Slider", minVal, maxVal, defaultVal, opts.Callback, opts.Step or opts.Increment or 1)
+        local s = makeSlider(self._container, opts.Title or "Slider", minVal, maxVal, defaultVal, opts.Callback, opts.Step or opts.Increment or 1, opts.Desc)
         return setmetatable(s, {__index = controlCommon})
     end
     function sectionProto:Dropdown(opts)
-        local d = makeDropdown(self._container, opts.Title or "Dropdown", opts.Values or {}, opts.Default or opts.Value, opts.Callback, opts.Multi or opts.MultiSelect)
+        local d = makeDropdown(self._container, opts.Title or "Dropdown", opts.Values or {}, opts.Default or opts.Value, opts.Callback, opts.Multi or opts.MultiSelect, opts.Desc)
         return setmetatable(d, {__index = controlCommon})
     end
     function sectionProto:Input(opts)
-        return makeInput(self._container, opts.Title or "Input", opts.Placeholder or "", opts.Default or "", opts.Callback)
+        return makeInput(self._container, opts.Title or "Input", opts.Placeholder or "", opts.Default or "", opts.Callback, opts.Desc)
     end
     function sectionProto:Button(opts)
-        return makeButton(self._container, opts.Title or "Button", opts.Callback)
+        return makeButton(self._container, opts.Title or "Button", opts.Callback, opts.Desc)
     end
     function sectionProto:Colorpicker(opts)
-        return makeColorpicker(self._container, opts.Title or "Color", opts.Default or Color3.fromRGB(255, 255, 255), opts.Callback)
+        return makeColorpicker(self._container, opts.Title or "Color", opts.Default or Color3.fromRGB(255, 255, 255), opts.Callback, opts.Desc)
     end
     
     -- Keybind method - creates a button that allows binding a key
@@ -1503,21 +1655,21 @@ do
             maxVal = opts.Value.Max or maxVal
             defaultVal = opts.Value.Default or defaultVal
         end
-        local s = makeSlider(self._scroll, opts.Title or "Slider", minVal, maxVal, defaultVal, opts.Callback, opts.Step or opts.Increment or 1)
+        local s = makeSlider(self._scroll, opts.Title or "Slider", minVal, maxVal, defaultVal, opts.Callback, opts.Step or opts.Increment or 1, opts.Desc)
         return setmetatable(s, {__index = controlCommon})
     end
     function tabProto:Dropdown(opts)
-        local d = makeDropdown(self._scroll, opts.Title or "Dropdown", opts.Values or {}, opts.Default or opts.Value, opts.Callback, opts.Multi or opts.MultiSelect)
+        local d = makeDropdown(self._scroll, opts.Title or "Dropdown", opts.Values or {}, opts.Default or opts.Value, opts.Callback, opts.Multi or opts.MultiSelect, opts.Desc)
         return setmetatable(d, {__index = controlCommon})
     end
     function tabProto:Input(opts)
-        return makeInput(self._scroll, opts.Title or "Input", opts.Placeholder or "", opts.Default or "", opts.Callback)
+        return makeInput(self._scroll, opts.Title or "Input", opts.Placeholder or "", opts.Default or "", opts.Callback, opts.Desc)
     end
     function tabProto:Button(opts)
-        return makeButton(self._scroll, opts.Title or "Button", opts.Callback)
+        return makeButton(self._scroll, opts.Title or "Button", opts.Callback, opts.Desc)
     end
     function tabProto:Colorpicker(opts)
-        return makeColorpicker(self._scroll, opts.Title or "Color", opts.Default or Color3.fromRGB(255, 255, 255), opts.Callback)
+        return makeColorpicker(self._scroll, opts.Title or "Color", opts.Default or Color3.fromRGB(255, 255, 255), opts.Callback, opts.Desc)
     end
     
     -- Keybind method for tabProto - creates a button that allows binding a key
@@ -2001,46 +2153,53 @@ do
             end)
         end)
 
-        -- Resize handle (bottom-right corner) - larger for easier grabbing
+        -- Resize handle (outside bottom-right corner) - curved line following corner
         local resizeHandle = new("TextButton", {
-            Size = UDim2.new(0, 32, 0, 32),
-            Position = UDim2.new(1, -32, 1, -32),
+            Size = UDim2.new(0, 40, 0, 40),
+            Position = UDim2.new(1, -8, 1, -8),
+            AnchorPoint = Vector2.new(0, 0),
             BackgroundTransparency = 1,
             Text = "",
-            AutoButtonColor = false
+            AutoButtonColor = false,
+            ZIndex = 10
         })
         resizeHandle.Parent = frame
         
-        -- Draw resize indicator (diagonal lines) - repositioned for larger handle
-        local resizeLine1 = new("Frame", {
-            Size = UDim2.new(0, 14, 0, 2),
-            Position = UDim2.new(0, 14, 0, 22),
-            Rotation = 45,
-            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-            BackgroundTransparency = 0.5,
+        -- Draw curved resize indicator (arc following corner)
+        local resizeArc = new("Frame", {
+            Size = UDim2.new(0, 24, 0, 24),
+            Position = UDim2.new(0, 8, 0, 8),
+            BackgroundTransparency = 1,
             BorderSizePixel = 0
         })
-        resizeLine1.Parent = resizeHandle
+        resizeArc.Parent = resizeHandle
         
-        local resizeLine2 = new("Frame", {
-            Size = UDim2.new(0, 10, 0, 2),
-            Position = UDim2.new(0, 18, 0, 22),
-            Rotation = 45,
-            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-            BackgroundTransparency = 0.5,
+        -- Create arc using UICorner on a frame with only border showing
+        local arcInner = new("Frame", {
+            Size = UDim2.new(1, 0, 1, 0),
+            BackgroundTransparency = 1,
             BorderSizePixel = 0
         })
-        resizeLine2.Parent = resizeHandle
+        arcInner.Parent = resizeArc
+        round(arcInner, 12)
+        local arcStroke = Instance.new("UIStroke")
+        arcStroke.Color = Color3.fromRGB(255, 255, 255)
+        arcStroke.Thickness = 3
+        arcStroke.Transparency = 0.4
+        arcStroke.Parent = arcInner
         
-        local resizeLine3 = new("Frame", {
-            Size = UDim2.new(0, 6, 0, 2),
-            Position = UDim2.new(0, 22, 0, 22),
-            Rotation = 45,
-            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-            BackgroundTransparency = 0.5,
-            BorderSizePixel = 0
-        })
-        resizeLine3.Parent = resizeHandle
+        -- Add grip dots
+        for i = 1, 3 do
+            local dot = new("Frame", {
+                Size = UDim2.new(0, 3, 0, 3),
+                Position = UDim2.new(0, 6 + (i-1)*6, 0, 18 - (i-1)*6),
+                BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                BackgroundTransparency = 0.4,
+                BorderSizePixel = 0
+            })
+            round(dot, 2)
+            dot.Parent = resizeArc
+        end
         
         -- Resize logic
         local resizing = false
@@ -2071,14 +2230,20 @@ do
         
         -- Hover effect for resize handle
         resizeHandle.MouseEnter:Connect(function()
-            resizeLine1.BackgroundTransparency = 0.2
-            resizeLine2.BackgroundTransparency = 0.2
-            resizeLine3.BackgroundTransparency = 0.2
+            arcStroke.Transparency = 0.1
+            for _, child in ipairs(resizeArc:GetChildren()) do
+                if child:IsA("Frame") and child.Size.X.Offset == 3 then
+                    child.BackgroundTransparency = 0.1
+                end
+            end
         end)
         resizeHandle.MouseLeave:Connect(function()
-            resizeLine1.BackgroundTransparency = 0.5
-            resizeLine2.BackgroundTransparency = 0.5
-            resizeLine3.BackgroundTransparency = 0.5
+            arcStroke.Transparency = 0.4
+            for _, child in ipairs(resizeArc:GetChildren()) do
+                if child:IsA("Frame") and child.Size.X.Offset == 3 then
+                    child.BackgroundTransparency = 0.4
+                end
+            end
         end)
 
         -- Tab list (left sidebar)
@@ -6799,12 +6964,14 @@ if GunTab then
         Value = SILENT_AIM_ENABLED,
         Callback = function(state)
             SILENT_AIM_ENABLED = state
-            WindUI:Notify({
-                Title = "Silent Aim",
-                Content = state and "Silent Aim Enabled - Your shots will be redirected to targets" or "Silent Aim Disabled",
-                Duration = 2,
-                Icon = state and "crosshair" or "x"
-            })
+            pcall(function()
+                WindUI:Notify({
+                    Title = "Silent Aim",
+                    Content = state and "Silent Aim Enabled - Your shots will be redirected to targets" or "Silent Aim Disabled",
+                    Duration = 2,
+                    Icon = state and "crosshair" or "x"
+                })
+            end)
         end
     })
     _G.KatchiToggleElements = _G.KatchiToggleElements or {}
@@ -16001,12 +16168,14 @@ do -- // Feedback Tab
         Desc = "Send feedback directly to the developer",
         Callback = function()
             if feedbackText == "" then
-                WindUI:Notify({
-                    Title = "Error",
-                    Content = "Feedback cannot be empty.",
-                    Duration = 2,
-                    Icon = "alert-triangle",
-                })
+                pcall(function()
+                    WindUI:Notify({
+                        Title = "Error",
+                        Content = "Feedback cannot be empty.",
+                        Duration = 2,
+                        Icon = "alert-triangle",
+                    })
+                end)
                 return
             end
 
@@ -16077,12 +16246,14 @@ end -- end of Feedback Tab
 
 task.wait(0.1) -- Delay to prevent lag
 do -- // Final task.spawn and connects
-        WindUI:Notify({
-            Title = "Katchi Hub Loaded",
-            Content = "Successfully loaded Katchi Hub v3.2\nUse RightShift key to toggle the menu",
-            Duration = 5,
-            Icon = "zap",
-        })
+        pcall(function()
+            WindUI:Notify({
+                Title = "Katchi Hub Loaded",
+                Content = "Successfully loaded Katchi Hub v3.2\nUse RightShift key to toggle the menu",
+                Duration = 5,
+                Icon = "zap",
+            })
+        end)
 
     print("Katchi Hub v3.2 successfully loaded!")
     print("Made by Yuki")
