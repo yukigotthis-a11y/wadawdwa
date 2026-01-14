@@ -201,6 +201,8 @@ end
 
 -- Core UI
 local WindUI = { Services = {}, _open = true }
+-- Add stub Notify that will be overwritten once notifier is ready
+function WindUI:Notify(opts) end
 _G.WindUI = WindUI -- Make globally accessible immediately
 do
     local gui = new("ScreenGui", {Name = "KatchiLiteUI", ResetOnSpawn = false, IgnoreGuiInset = true})
@@ -362,8 +364,13 @@ do
             Get = function() return state end,
             Set = function(v, skipCallback)
                 if state == v then return end -- No change needed
+                state = v -- Update internal state FIRST
                 setState(v, true)
-                if not skipCallback and cb then task.spawn(cb, state) end
+                if not skipCallback and cb then 
+                    task.spawn(function()
+                        cb(v)
+                    end)
+                end
             end,
             Lock = function() locked = true btn.AutoButtonColor = false btn.BackgroundColor3 = Color3.fromRGB(30,30,30) end,
             Unlock = function() locked = false btn.BackgroundColor3 = Color3.fromRGB(40,40,46) end,
