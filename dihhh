@@ -48,6 +48,22 @@ local LocalPlayer = Players.LocalPlayer
 -- Declare Window at outer scope so it's accessible everywhere
 local Window
 
+-- Global WindUI reference (will be set after UI library loads)
+local WindUI = nil
+_G.WindUI = nil
+
+-- Safe notify function that won't error even before WindUI is loaded
+local function SafeNotify(opts)
+    pcall(function()
+        if WindUI and WindUI.Notify then
+            WindUI:Notify(opts)
+        elseif _G.WindUI and _G.WindUI.Notify then
+            _G.WindUI:Notify(opts)
+        end
+    end)
+end
+_G.SafeNotify = SafeNotify
+
 do -- // Loader + UI + Dashboard
     -- Safety wrapper for WindUI loading (prevents crash on some executors)
 -- === Katchi Lite UI (WindUI-compatible shim) ===
@@ -185,6 +201,7 @@ end
 
 -- Core UI
 local WindUI = { Services = {}, _open = true }
+_G.WindUI = WindUI -- Make globally accessible immediately
 do
     local gui = new("ScreenGui", {Name = "KatchiLiteUI", ResetOnSpawn = false, IgnoreGuiInset = true})
     gui.Parent = PlayerGui
@@ -1485,7 +1502,9 @@ do
     end
     function sectionProto:Toggle(opts)
         local t = makeToggleButton(self._container, opts.Title or opts.Flag or "Toggle", opts.Default, opts.Callback, opts.Desc)
-        return setmetatable(t, {__index = controlCommon})
+        local control = setmetatable(t, {__index = controlCommon})
+        if opts.Flag then ConfigManager:RegisterControl(opts.Flag, control) end
+        return control
     end
     function sectionProto:Slider(opts)
         -- Support both formats: separate Min/Max/Default or Value = { Min, Max, Default }
@@ -1496,20 +1515,28 @@ do
             defaultVal = opts.Value.Default or defaultVal
         end
         local s = makeSlider(self._container, opts.Title or "Slider", minVal, maxVal, defaultVal, opts.Callback, opts.Step or opts.Increment or 1, opts.Desc)
-        return setmetatable(s, {__index = controlCommon})
+        local control = setmetatable(s, {__index = controlCommon})
+        if opts.Flag then ConfigManager:RegisterControl(opts.Flag, control) end
+        return control
     end
     function sectionProto:Dropdown(opts)
         local d = makeDropdown(self._container, opts.Title or "Dropdown", opts.Values or {}, opts.Default or opts.Value, opts.Callback, opts.Multi or opts.MultiSelect, opts.Desc)
-        return setmetatable(d, {__index = controlCommon})
+        local control = setmetatable(d, {__index = controlCommon})
+        if opts.Flag then ConfigManager:RegisterControl(opts.Flag, control) end
+        return control
     end
     function sectionProto:Input(opts)
-        return makeInput(self._container, opts.Title or "Input", opts.Placeholder or "", opts.Default or "", opts.Callback, opts.Desc)
+        local i = makeInput(self._container, opts.Title or "Input", opts.Placeholder or "", opts.Default or "", opts.Callback, opts.Desc)
+        if opts.Flag then ConfigManager:RegisterControl(opts.Flag, i) end
+        return i
     end
     function sectionProto:Button(opts)
         return makeButton(self._container, opts.Title or "Button", opts.Callback, opts.Desc)
     end
     function sectionProto:Colorpicker(opts)
-        return makeColorpicker(self._container, opts.Title or "Color", opts.Default or Color3.fromRGB(255, 255, 255), opts.Callback, opts.Desc)
+        local c = makeColorpicker(self._container, opts.Title or "Color", opts.Default or Color3.fromRGB(255, 255, 255), opts.Callback, opts.Desc)
+        if opts.Flag then ConfigManager:RegisterControl(opts.Flag, c) end
+        return c
     end
     
     -- Keybind method - creates a button that allows binding a key
@@ -1644,8 +1671,10 @@ do
         return makeParagraph(self._scroll, opts.Title, opts.Desc, opts.Buttons)
     end
     function tabProto:Toggle(opts)
-        local t = makeToggleButton(self._scroll, opts.Title or opts.Flag or "Toggle", opts.Default, opts.Callback)
-        return setmetatable(t, {__index = controlCommon})
+        local t = makeToggleButton(self._scroll, opts.Title or opts.Flag or "Toggle", opts.Default, opts.Callback, opts.Desc)
+        local control = setmetatable(t, {__index = controlCommon})
+        if opts.Flag then ConfigManager:RegisterControl(opts.Flag, control) end
+        return control
     end
     function tabProto:Slider(opts)
         -- Support both formats: separate Min/Max/Default or Value = { Min, Max, Default }
@@ -1656,20 +1685,28 @@ do
             defaultVal = opts.Value.Default or defaultVal
         end
         local s = makeSlider(self._scroll, opts.Title or "Slider", minVal, maxVal, defaultVal, opts.Callback, opts.Step or opts.Increment or 1, opts.Desc)
-        return setmetatable(s, {__index = controlCommon})
+        local control = setmetatable(s, {__index = controlCommon})
+        if opts.Flag then ConfigManager:RegisterControl(opts.Flag, control) end
+        return control
     end
     function tabProto:Dropdown(opts)
         local d = makeDropdown(self._scroll, opts.Title or "Dropdown", opts.Values or {}, opts.Default or opts.Value, opts.Callback, opts.Multi or opts.MultiSelect, opts.Desc)
-        return setmetatable(d, {__index = controlCommon})
+        local control = setmetatable(d, {__index = controlCommon})
+        if opts.Flag then ConfigManager:RegisterControl(opts.Flag, control) end
+        return control
     end
     function tabProto:Input(opts)
-        return makeInput(self._scroll, opts.Title or "Input", opts.Placeholder or "", opts.Default or "", opts.Callback, opts.Desc)
+        local i = makeInput(self._scroll, opts.Title or "Input", opts.Placeholder or "", opts.Default or "", opts.Callback, opts.Desc)
+        if opts.Flag then ConfigManager:RegisterControl(opts.Flag, i) end
+        return i
     end
     function tabProto:Button(opts)
         return makeButton(self._scroll, opts.Title or "Button", opts.Callback, opts.Desc)
     end
     function tabProto:Colorpicker(opts)
-        return makeColorpicker(self._scroll, opts.Title or "Color", opts.Default or Color3.fromRGB(255, 255, 255), opts.Callback, opts.Desc)
+        local c = makeColorpicker(self._scroll, opts.Title or "Color", opts.Default or Color3.fromRGB(255, 255, 255), opts.Callback, opts.Desc)
+        if opts.Flag then ConfigManager:RegisterControl(opts.Flag, c) end
+        return c
     end
     
     -- Keybind method for tabProto - creates a button that allows binding a key
@@ -2051,16 +2088,166 @@ do
     function windowProto:Tag(_) end -- no-op for compatibility
 
     function WindUI:SetNotificationLower(_) end -- compatibility
-    function WindUI:Notify(opts) notifier:Push(opts or {}) end
+    function WindUI:Notify(opts) 
+        pcall(function()
+            if notifier and notifier.Push then
+                notifier:Push(opts or {})
+            end
+        end)
+    end
 
-    -- Config manager (simple in-memory; expand as needed)
+    -- Config manager with file persistence
+    local HttpService = game:GetService("HttpService")
+    local configFolder = "KatchiConfigs"
     local configStore = _G.__KatchiConfigs or {}
     _G.__KatchiConfigs = configStore
+    
+    -- Track all registered controls for saving/loading
+    local registeredControls = {}
+    _G.__KatchiRegisteredControls = _G.__KatchiRegisteredControls or registeredControls
+    registeredControls = _G.__KatchiRegisteredControls
+    
     local ConfigManager = {}
+    
+    -- Ensure config folder exists
+    local function ensureFolder()
+        if isfolder and not isfolder(configFolder) then
+            pcall(function() makefolder(configFolder) end)
+        end
+    end
+    
+    -- Get all saved config files
+    function ConfigManager:AllConfigs()
+        ensureFolder()
+        local configs = {}
+        local ok, files = pcall(function()
+            if listfiles then
+                return listfiles(configFolder)
+            end
+            return {}
+        end)
+        if ok and files then
+            for _, file in ipairs(files) do
+                local name = file:match("([^/\\]+)%.json$")
+                if name then
+                    table.insert(configs, name)
+                end
+            end
+        end
+        -- Also add in-memory configs
+        for k, _ in pairs(configStore) do
+            if not table.find(configs, k) then
+                table.insert(configs, k)
+            end
+        end
+        return configs
+    end
+    
+    -- Create a config object for a given name
+    function ConfigManager:CreateConfig(name)
+        local configObj = {}
+        configObj.Name = name
+        
+        -- Collect current state of all registered controls
+        function configObj:GetCurrentState()
+            local state = {}
+            for id, control in pairs(registeredControls) do
+                if control and control.Get then
+                    local ok, val = pcall(function() return control:Get() end)
+                    if ok then
+                        state[id] = val
+                    end
+                end
+            end
+            return state
+        end
+        
+        -- Save config to file
+        function configObj:Save()
+            ensureFolder()
+            local state = self:GetCurrentState()
+            configStore[name] = state
+            
+            local ok = pcall(function()
+                if writefile then
+                    local json = HttpService:JSONEncode(state)
+                    writefile(configFolder .. "/" .. name .. ".json", json)
+                end
+            end)
+            return ok
+        end
+        
+        -- Load config from file and apply to controls
+        function configObj:Load()
+            ensureFolder()
+            local state = nil
+            
+            -- Try to load from file first
+            local ok = pcall(function()
+                if readfile and isfile and isfile(configFolder .. "/" .. name .. ".json") then
+                    local json = readfile(configFolder .. "/" .. name .. ".json")
+                    state = HttpService:JSONDecode(json)
+                end
+            end)
+            
+            -- Fall back to in-memory store
+            if not state then
+                state = configStore[name]
+            end
+            
+            if state and type(state) == "table" then
+                for id, value in pairs(state) do
+                    local control = registeredControls[id]
+                    if control and control.Set then
+                        pcall(function() control:Set(value) end)
+                    end
+                end
+                return true
+            end
+            return false
+        end
+        
+        -- Delete config
+        function configObj:Delete()
+            configStore[name] = nil
+            local ok = pcall(function()
+                if delfile and isfile and isfile(configFolder .. "/" .. name .. ".json") then
+                    delfile(configFolder .. "/" .. name .. ".json")
+                end
+            end)
+            return true
+        end
+        
+        return configObj
+    end
+    
+    -- Legacy methods for backward compatibility
     function ConfigManager:Save(name, data) configStore[name] = data return true end
     function ConfigManager:Load(name) return configStore[name] end
-    function ConfigManager:GetConfigs() local t = {} for k,_ in pairs(configStore) do table.insert(t,k) end return t end
+    function ConfigManager:GetConfigs() return self:AllConfigs() end
     function ConfigManager:Delete(name) configStore[name] = nil return true end
+    
+    -- Helper to register a control for config saving
+    function ConfigManager:RegisterControl(id, control)
+        if id and control then
+            registeredControls[id] = control
+        end
+    end
+    
+    -- Make ConfigManager globally accessible
+    _G.ConfigManager = ConfigManager
+    
+    -- Safe notify function that won't error if WindUI:Notify is not available
+    local function SafeNotify(opts)
+        pcall(function()
+            if WindUI and WindUI.Notify then
+                WindUI:Notify(opts)
+            end
+        end)
+    end
+    
+    -- Expose SafeNotify globally for use elsewhere
+    _G.KatchiSafeNotify = SafeNotify
 
     function WindUI:CreateWindow(opts)
         -- Responsive size: smaller on mobile, wider aspect ratio
@@ -2302,6 +2489,9 @@ do
         return window
     end
 end
+
+-- Update global WindUI reference
+_G.WindUI = WindUI
 
 -- Replace WindUI reference
 -- Everything below can keep using WindUI:CreateWindow(), :Notify(), etc.
@@ -13372,12 +13562,22 @@ do -- // Configs & Theme Tab
     Locked = false,
 })
 
-local ConfigManager = Window.ConfigManager
+-- Use global ConfigManager or try to get from Window
+local ConfigManager = _G.ConfigManager or (Window and Window.ConfigManager)
 local ConfigSection = skibiTab:Section({
     Title = "Configs",
     Icon = "file-plus",
     Opened = true
 })
+
+-- Verify ConfigManager exists
+if not ConfigManager then
+    warn("[Katchi] ConfigManager not found, configs will not work")
+    ConfigSection:Paragraph({
+        Title = "Config System",
+        Content = "Config system is not available. This may be due to executor limitations."
+    })
+else
 
 local profileName = "default"
 local selectedProfile = nil
@@ -13385,14 +13585,19 @@ local ConfigDropdown = nil
 local overwriteExisting = true -- new default
 
 local function notify(title, content, icon, dur)
-    if WindUI then
-        pcall(function() WindUI:Notify({ Title = title or "Config", Content = content or "", Icon = icon or "save", Duration = dur or 2 }) end)
-    else
-        pcall(function() print(("[%s] %s"):format(title or "Config", content or "")) end)
-    end
+    pcall(function() 
+        if WindUI and WindUI.Notify then
+            WindUI:Notify({ Title = title or "Config", Content = content or "", Icon = icon or "save", Duration = dur or 2 })
+        elseif _G.WindUI and _G.WindUI.Notify then
+            _G.WindUI:Notify({ Title = title or "Config", Content = content or "", Icon = icon or "save", Duration = dur or 2 })
+        else
+            print(("[%s] %s"):format(title or "Config", content or ""))
+        end
+    end)
 end
 
 local function GetAllConfigsSafe()
+    if not ConfigManager or not ConfigManager.AllConfigs then return {} end
     local ok, list = pcall(function() return ConfigManager:AllConfigs() end)
     if not ok or type(list) ~= "table" then return {} end
     local out = {}
@@ -13572,6 +13777,8 @@ ConfigSection:Button({
 
 -- Initial population
 RefreshConfigsDropdown()
+
+end -- end of ConfigManager check
 
 -- === Fixed Theme Tab (use this in place of the previous snippet) ===
 local ThemeTab = Others1Section:Tab({
