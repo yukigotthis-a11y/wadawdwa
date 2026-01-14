@@ -277,6 +277,39 @@ do
             if not locked then btn.BackgroundColor3 = Color3.fromRGB(40, 40, 46) end
         end)
 
+        -- Track scrolling for toggle to prevent accidental clicks while scrolling
+        local toggleTouchStart = nil
+        local toggleIsScrolling = false
+        
+        btn.InputBegan:Connect(function(io)
+            if io.UserInputType == Enum.UserInputType.Touch then
+                toggleTouchStart = io.Position
+                toggleIsScrolling = false
+            end
+        end)
+        
+        btn.InputChanged:Connect(function(io)
+            if io.UserInputType == Enum.UserInputType.Touch and toggleTouchStart then
+                local delta = (io.Position - toggleTouchStart).Magnitude
+                if delta > 10 then
+                    toggleIsScrolling = true
+                end
+            end
+        end)
+        
+        btn.InputEnded:Connect(function(io)
+            if io.UserInputType == Enum.UserInputType.Touch then
+                if not toggleIsScrolling and not locked then
+                    state = not state
+                    setState(state, true)
+                    if cb then task.spawn(cb, state) end
+                end
+                toggleTouchStart = nil
+                toggleIsScrolling = false
+            end
+        end)
+
+        -- Desktop click (mouse doesn't have scroll conflict)
         btn.MouseButton1Click:Connect(function()
             if locked then return end
             state = not state
@@ -408,7 +441,7 @@ do
             TextSize = 14,
             TextXAlignment = Enum.TextXAlignment.Right,
             TextColor3 = Color3.fromRGB(200, 200, 200),
-            Text = default or (values and values[1]) or ""
+            Text = type(default) == "table" and table.concat(default, ", ") or (default and tostring(default) or (values and values[1] and tostring(values[1]) or ""))
         })
         valLbl.Parent = frame
 
@@ -416,13 +449,18 @@ do
         local locked = false
         local current = valLbl.Text
 
-        local dropdownHolder = new("Frame", {
+        local dropdownHolder = new("ScrollingFrame", {
             Size = UDim2.new(1, 0, 0, 0),
             Position = UDim2.new(0, 0, 1, 4),
             BackgroundColor3 = Color3.fromRGB(28, 28, 32),
             BorderSizePixel = 0,
             Visible = false,
-            ClipsDescendants = true
+            ClipsDescendants = true,
+            ZIndex = 100,
+            ScrollBarThickness = 3,
+            ScrollingDirection = Enum.ScrollingDirection.Y,
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            CanvasSize = UDim2.new(0, 0, 0, 0)
         })
         round(dropdownHolder, 10)
         stroke(dropdownHolder, Color3.fromRGB(255,255,255), 1, 0.8)
@@ -438,6 +476,15 @@ do
                 VerticalAlignment = Enum.VerticalAlignment.Top
             })
             newList.Parent = dropdownHolder
+            
+            local listPad = new("UIPadding", {
+                PaddingTop = UDim.new(0, 4),
+                PaddingBottom = UDim.new(0, 4),
+                PaddingLeft = UDim.new(0, 4),
+                PaddingRight = UDim.new(0, 4)
+            })
+            listPad.Parent = dropdownHolder
+            
             for _, v in ipairs(values or {}) do
                 local item = new("TextButton", {
                     AutoButtonColor = false,
@@ -447,10 +494,16 @@ do
                     Font = Enum.Font.Gotham,
                     TextSize = 14,
                     TextColor3 = Color3.fromRGB(230, 230, 230),
-                    Text = tostring(v)
+                    Text = tostring(v),
+                    ZIndex = 101
                 })
                 round(item, 8)
                 item.Parent = dropdownHolder
+                
+                -- Track if we're scrolling vs clicking
+                local touchStart = nil
+                local isScrolling = false
+                
                 -- Hover effects
                 item.MouseEnter:Connect(function()
                     item.BackgroundColor3 = Color3.fromRGB(255, 85, 85)
@@ -458,6 +511,39 @@ do
                 item.MouseLeave:Connect(function()
                     item.BackgroundColor3 = Color3.fromRGB(38, 38, 44)
                 end)
+                
+                -- Use InputBegan/InputEnded for better scroll detection
+                item.InputBegan:Connect(function(io)
+                    if io.UserInputType == Enum.UserInputType.Touch then
+                        touchStart = io.Position
+                        isScrolling = false
+                    end
+                end)
+                
+                item.InputChanged:Connect(function(io)
+                    if io.UserInputType == Enum.UserInputType.Touch and touchStart then
+                        local delta = (io.Position - touchStart).Magnitude
+                        if delta > 10 then
+                            isScrolling = true
+                        end
+                    end
+                end)
+                
+                item.InputEnded:Connect(function(io)
+                    if io.UserInputType == Enum.UserInputType.Touch then
+                        if not isScrolling and not locked then
+                            current = tostring(v)
+                            valLbl.Text = current
+                            if cb then task.spawn(cb, current) end
+                            dropdownHolder.Visible = false
+                            open = false
+                        end
+                        touchStart = nil
+                        isScrolling = false
+                    end
+                end)
+                
+                -- Desktop click (mouse doesn't scroll)
                 item.MouseButton1Click:Connect(function()
                     if locked then return end
                     current = tostring(v)
@@ -467,21 +553,56 @@ do
                     open = false
                 end)
             end
-            dropdownHolder.Size = UDim2.new(1, 0, 0, math.min((#(values or {}) * 30) + 6, 200))
+            dropdownHolder.Size = UDim2.new(1, 0, 0, math.min((#(values or {}) * 32) + 12, 200))
         end
         rebuild()
 
+        -- Track scrolling for dropdown toggle
+        local frameTouchStart = nil
+        local frameIsScrolling = false
+        
         frame.InputBegan:Connect(function(io)
             if locked then return end
-            if io.UserInputType == Enum.UserInputType.MouseButton1 or io.UserInputType == Enum.UserInputType.Touch then
+            if io.UserInputType == Enum.UserInputType.Touch then
+                frameTouchStart = io.Position
+                frameIsScrolling = false
+            elseif io.UserInputType == Enum.UserInputType.MouseButton1 then
+                -- Desktop: immediate toggle
                 open = not open
                 dropdownHolder.Visible = open
+            end
+        end)
+        
+        frame.InputChanged:Connect(function(io)
+            if io.UserInputType == Enum.UserInputType.Touch and frameTouchStart then
+                local delta = (io.Position - frameTouchStart).Magnitude
+                if delta > 10 then
+                    frameIsScrolling = true
+                end
+            end
+        end)
+        
+        frame.InputEnded:Connect(function(io)
+            if io.UserInputType == Enum.UserInputType.Touch then
+                if not frameIsScrolling and not locked then
+                    open = not open
+                    dropdownHolder.Visible = open
+                end
+                frameTouchStart = nil
+                frameIsScrolling = false
             end
         end)
 
         return {
             GetValue = function() return current end,
-            SetValue = function(v) current = v valLbl.Text = tostring(v) end,
+            SetValue = function(v) 
+                if type(v) == "table" then
+                    current = table.concat(v, ", ")
+                else
+                    current = tostring(v)
+                end
+                valLbl.Text = current 
+            end,
             SetValues = function(vs) values = vs rebuild() end,
             Lock = function() locked = true frame.BackgroundColor3 = Color3.fromRGB(30,30,30) dropdownHolder.Visible=false open=false end,
             Unlock = function() locked = false frame.BackgroundColor3 = Color3.fromRGB(40,40,46) end,
@@ -651,6 +772,37 @@ do
             btn.BackgroundColor3 = Color3.fromRGB(255, 85, 85)
         end)
 
+        -- Track scrolling for button to prevent accidental clicks
+        local btnTouchStart = nil
+        local btnIsScrolling = false
+        
+        btn.InputBegan:Connect(function(io)
+            if io.UserInputType == Enum.UserInputType.Touch then
+                btnTouchStart = io.Position
+                btnIsScrolling = false
+            end
+        end)
+        
+        btn.InputChanged:Connect(function(io)
+            if io.UserInputType == Enum.UserInputType.Touch and btnTouchStart then
+                local delta = (io.Position - btnTouchStart).Magnitude
+                if delta > 10 then
+                    btnIsScrolling = true
+                end
+            end
+        end)
+        
+        btn.InputEnded:Connect(function(io)
+            if io.UserInputType == Enum.UserInputType.Touch then
+                if not btnIsScrolling then
+                    if cb then task.spawn(cb) end
+                end
+                btnTouchStart = nil
+                btnIsScrolling = false
+            end
+        end)
+
+        -- Desktop click
         btn.MouseButton1Click:Connect(function()
             if cb then task.spawn(cb) end
         end)
@@ -909,12 +1061,38 @@ do
             end
         end)
 
-        -- Toggle picker
+        -- Toggle picker with scroll detection
+        local cpTouchStart = nil
+        local cpIsScrolling = false
+        
         frame.InputBegan:Connect(function(io)
             if locked then return end
-            if io.UserInputType == Enum.UserInputType.MouseButton1 or io.UserInputType == Enum.UserInputType.Touch then
+            if io.UserInputType == Enum.UserInputType.Touch then
+                cpTouchStart = io.Position
+                cpIsScrolling = false
+            elseif io.UserInputType == Enum.UserInputType.MouseButton1 then
                 open = not open
                 pickerPanel.Visible = open
+            end
+        end)
+        
+        frame.InputChanged:Connect(function(io)
+            if io.UserInputType == Enum.UserInputType.Touch and cpTouchStart then
+                local delta = (io.Position - cpTouchStart).Magnitude
+                if delta > 10 then
+                    cpIsScrolling = true
+                end
+            end
+        end)
+        
+        frame.InputEnded:Connect(function(io)
+            if io.UserInputType == Enum.UserInputType.Touch then
+                if not cpIsScrolling and not locked then
+                    open = not open
+                    pickerPanel.Visible = open
+                end
+                cpTouchStart = nil
+                cpIsScrolling = false
             end
         end)
 
