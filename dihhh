@@ -1503,7 +1503,7 @@ do
     function sectionProto:Toggle(opts)
         local t = makeToggleButton(self._container, opts.Title or opts.Flag or "Toggle", opts.Default, opts.Callback, opts.Desc)
         local control = setmetatable(t, {__index = controlCommon})
-        if opts.Flag then ConfigManager:RegisterControl(opts.Flag, control) end
+        if opts.Flag and _G.ConfigManager then _G.ConfigManager:RegisterControl(opts.Flag, control) end
         return control
     end
     function sectionProto:Slider(opts)
@@ -1516,18 +1516,18 @@ do
         end
         local s = makeSlider(self._container, opts.Title or "Slider", minVal, maxVal, defaultVal, opts.Callback, opts.Step or opts.Increment or 1, opts.Desc)
         local control = setmetatable(s, {__index = controlCommon})
-        if opts.Flag then ConfigManager:RegisterControl(opts.Flag, control) end
+        if opts.Flag and _G.ConfigManager then _G.ConfigManager:RegisterControl(opts.Flag, control) end
         return control
     end
     function sectionProto:Dropdown(opts)
         local d = makeDropdown(self._container, opts.Title or "Dropdown", opts.Values or {}, opts.Default or opts.Value, opts.Callback, opts.Multi or opts.MultiSelect, opts.Desc)
         local control = setmetatable(d, {__index = controlCommon})
-        if opts.Flag then ConfigManager:RegisterControl(opts.Flag, control) end
+        if opts.Flag and _G.ConfigManager then _G.ConfigManager:RegisterControl(opts.Flag, control) end
         return control
     end
     function sectionProto:Input(opts)
         local i = makeInput(self._container, opts.Title or "Input", opts.Placeholder or "", opts.Default or "", opts.Callback, opts.Desc)
-        if opts.Flag then ConfigManager:RegisterControl(opts.Flag, i) end
+        if opts.Flag and _G.ConfigManager then _G.ConfigManager:RegisterControl(opts.Flag, i) end
         return i
     end
     function sectionProto:Button(opts)
@@ -1535,7 +1535,7 @@ do
     end
     function sectionProto:Colorpicker(opts)
         local c = makeColorpicker(self._container, opts.Title or "Color", opts.Default or Color3.fromRGB(255, 255, 255), opts.Callback, opts.Desc)
-        if opts.Flag then ConfigManager:RegisterControl(opts.Flag, c) end
+        if opts.Flag and _G.ConfigManager then _G.ConfigManager:RegisterControl(opts.Flag, c) end
         return c
     end
     
@@ -1673,7 +1673,7 @@ do
     function tabProto:Toggle(opts)
         local t = makeToggleButton(self._scroll, opts.Title or opts.Flag or "Toggle", opts.Default, opts.Callback, opts.Desc)
         local control = setmetatable(t, {__index = controlCommon})
-        if opts.Flag then ConfigManager:RegisterControl(opts.Flag, control) end
+        if opts.Flag and _G.ConfigManager then _G.ConfigManager:RegisterControl(opts.Flag, control) end
         return control
     end
     function tabProto:Slider(opts)
@@ -1686,18 +1686,18 @@ do
         end
         local s = makeSlider(self._scroll, opts.Title or "Slider", minVal, maxVal, defaultVal, opts.Callback, opts.Step or opts.Increment or 1, opts.Desc)
         local control = setmetatable(s, {__index = controlCommon})
-        if opts.Flag then ConfigManager:RegisterControl(opts.Flag, control) end
+        if opts.Flag and _G.ConfigManager then _G.ConfigManager:RegisterControl(opts.Flag, control) end
         return control
     end
     function tabProto:Dropdown(opts)
         local d = makeDropdown(self._scroll, opts.Title or "Dropdown", opts.Values or {}, opts.Default or opts.Value, opts.Callback, opts.Multi or opts.MultiSelect, opts.Desc)
         local control = setmetatable(d, {__index = controlCommon})
-        if opts.Flag then ConfigManager:RegisterControl(opts.Flag, control) end
+        if opts.Flag and _G.ConfigManager then _G.ConfigManager:RegisterControl(opts.Flag, control) end
         return control
     end
     function tabProto:Input(opts)
         local i = makeInput(self._scroll, opts.Title or "Input", opts.Placeholder or "", opts.Default or "", opts.Callback, opts.Desc)
-        if opts.Flag then ConfigManager:RegisterControl(opts.Flag, i) end
+        if opts.Flag and _G.ConfigManager then _G.ConfigManager:RegisterControl(opts.Flag, i) end
         return i
     end
     function tabProto:Button(opts)
@@ -1705,7 +1705,7 @@ do
     end
     function tabProto:Colorpicker(opts)
         local c = makeColorpicker(self._scroll, opts.Title or "Color", opts.Default or Color3.fromRGB(255, 255, 255), opts.Callback, opts.Desc)
-        if opts.Flag then ConfigManager:RegisterControl(opts.Flag, c) end
+        if opts.Flag and _G.ConfigManager then _G.ConfigManager:RegisterControl(opts.Flag, c) end
         return c
     end
     
