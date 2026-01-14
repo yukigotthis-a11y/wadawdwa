@@ -367,41 +367,76 @@ do
         round(fill, 7)
         fill.Parent = bar
 
-        local value = default or min
+        local value = math.clamp(default or min, min, max)
         local locked = false
         step = step or 1
 
         local function setValue(v)
             v = math.clamp(math.floor(v/step + 0.5)*step, min, max)
             value = v
-            fill.Size = UDim2.new((v - min)/(max - min), 0, 1, 0)
+            local range = max - min
+            if range > 0 then
+                fill.Size = UDim2.new((v - min)/range, 0, 1, 0)
+            else
+                fill.Size = UDim2.new(0, 0, 1, 0)
+            end
             lbl.Text = label .. " [" .. tostring(v) .. "]"
         end
         setValue(value)
 
         local function inputAt(x)
             local rel = (x - bar.AbsolutePosition.X)/bar.AbsoluteSize.X
+            rel = math.clamp(rel, 0, 1)
             setValue(min + (max - min)*rel)
             if cb then task.spawn(cb, value) end
         end
 
+        -- Scroll detection to prevent accidental slider changes
         local draggingSlider = false
+        local sliderTouchStart = nil
+        local sliderIsScrolling = false
+        
         bar.InputBegan:Connect(function(io)
             if locked then return end
-            if io.UserInputType == Enum.UserInputType.MouseButton1 or io.UserInputType == Enum.UserInputType.Touch then
+            if io.UserInputType == Enum.UserInputType.Touch then
+                sliderTouchStart = io.Position
+                sliderIsScrolling = false
+            elseif io.UserInputType == Enum.UserInputType.MouseButton1 then
+                -- Desktop: immediate drag
                 draggingSlider = true
                 inputAt(io.Position.X)
             end
         end)
+        
+        bar.InputChanged:Connect(function(io)
+            if io.UserInputType == Enum.UserInputType.Touch and sliderTouchStart then
+                local deltaY = math.abs(io.Position.Y - sliderTouchStart.Y)
+                local deltaX = math.abs(io.Position.X - sliderTouchStart.X)
+                -- If vertical movement > horizontal, user is scrolling
+                if deltaY > 15 and deltaY > deltaX then
+                    sliderIsScrolling = true
+                elseif not sliderIsScrolling and deltaX > 5 then
+                    -- User is dragging horizontally on slider
+                    draggingSlider = true
+                    inputAt(io.Position.X)
+                end
+            end
+        end)
+        
         bar.InputEnded:Connect(function(io)
             if io.UserInputType == Enum.UserInputType.MouseButton1 or io.UserInputType == Enum.UserInputType.Touch then
                 draggingSlider = false
+                sliderTouchStart = nil
+                sliderIsScrolling = false
             end
         end)
+        
         UserInputService.InputChanged:Connect(function(io)
             if locked or not draggingSlider then return end
             if io.UserInputType == Enum.UserInputType.MouseMovement or io.UserInputType == Enum.UserInputType.Touch then
-                inputAt(io.Position.X)
+                if not sliderIsScrolling then
+                    inputAt(io.Position.X)
+                end
             end
         end)
 
@@ -1301,11 +1336,18 @@ do
         return setmetatable(t, {__index = controlCommon})
     end
     function sectionProto:Slider(opts)
-        local s = makeSlider(self._container, opts.Title or "Slider", opts.Min or 0, opts.Max or 100, opts.Default or 0, opts.Callback, opts.Increment or 1)
+        -- Support both formats: separate Min/Max/Default or Value = { Min, Max, Default }
+        local minVal, maxVal, defaultVal = opts.Min or 0, opts.Max or 100, opts.Default or 0
+        if opts.Value and type(opts.Value) == "table" then
+            minVal = opts.Value.Min or minVal
+            maxVal = opts.Value.Max or maxVal
+            defaultVal = opts.Value.Default or defaultVal
+        end
+        local s = makeSlider(self._container, opts.Title or "Slider", minVal, maxVal, defaultVal, opts.Callback, opts.Step or opts.Increment or 1)
         return setmetatable(s, {__index = controlCommon})
     end
     function sectionProto:Dropdown(opts)
-        local d = makeDropdown(self._container, opts.Title or "Dropdown", opts.Values or {}, opts.Default, opts.Callback, opts.MultiSelect)
+        local d = makeDropdown(self._container, opts.Title or "Dropdown", opts.Values or {}, opts.Default or opts.Value, opts.Callback, opts.Multi or opts.MultiSelect)
         return setmetatable(d, {__index = controlCommon})
     end
     function sectionProto:Input(opts)
@@ -1316,6 +1358,97 @@ do
     end
     function sectionProto:Colorpicker(opts)
         return makeColorpicker(self._container, opts.Title or "Color", opts.Default or Color3.fromRGB(255, 255, 255), opts.Callback)
+    end
+    
+    -- Keybind method - creates a button that allows binding a key
+    function sectionProto:Keybind(opts)
+        local currentKey = opts.Value or opts.Default or ""
+        local listening = false
+        
+        local frame = new("Frame", {
+            Size = UDim2.new(1, 0, 0, 40),
+            BackgroundColor3 = Color3.fromRGB(40, 40, 46),
+            BorderSizePixel = 0
+        })
+        round(frame, 10)
+        gradient(frame, Color3.fromRGB(48, 48, 60), Color3.fromRGB(38, 38, 44), 90)
+        stroke(frame, Color3.fromRGB(255, 255, 255), 1, 0.75)
+        frame.Parent = self._container
+        
+        local lbl = new("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(0.6, -12, 1, 0),
+            Position = UDim2.new(0, 12, 0, 0),
+            Font = Enum.Font.Gotham,
+            TextSize = 14,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextColor3 = Color3.fromRGB(230, 230, 230),
+            Text = opts.Title or "Keybind"
+        })
+        lbl.Parent = frame
+        
+        local keyBtn = new("TextButton", {
+            AutoButtonColor = false,
+            Size = UDim2.new(0.35, -8, 0, 28),
+            Position = UDim2.new(0.65, 0, 0.5, 0),
+            AnchorPoint = Vector2.new(0, 0.5),
+            BackgroundColor3 = Color3.fromRGB(50, 50, 58),
+            BorderSizePixel = 0,
+            Font = Enum.Font.GothamBold,
+            TextSize = 12,
+            TextColor3 = Color3.fromRGB(200, 200, 200),
+            Text = currentKey ~= "" and currentKey or "None"
+        })
+        round(keyBtn, 6)
+        stroke(keyBtn, Color3.fromRGB(255, 255, 255), 1, 0.5)
+        keyBtn.Parent = frame
+        
+        local function updateKeyDisplay()
+            keyBtn.Text = currentKey ~= "" and currentKey or "None"
+        end
+        
+        keyBtn.MouseButton1Click:Connect(function()
+            if listening then return end
+            listening = true
+            keyBtn.Text = "..."
+            keyBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 80)
+            
+            local conn
+            conn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+                if gameProcessed then return end
+                if input.UserInputType == Enum.UserInputType.Keyboard then
+                    currentKey = input.KeyCode.Name
+                    updateKeyDisplay()
+                    listening = false
+                    keyBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 58)
+                    conn:Disconnect()
+                elseif input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2 then
+                    -- Cancel on mouse click
+                    listening = false
+                    keyBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 58)
+                    updateKeyDisplay()
+                    conn:Disconnect()
+                end
+            end)
+        end)
+        
+        -- Listen for key presses to trigger callback
+        UserInputService.InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end
+            if currentKey ~= "" and input.UserInputType == Enum.UserInputType.Keyboard then
+                if input.KeyCode.Name == currentKey then
+                    if opts.Callback then
+                        task.spawn(opts.Callback)
+                    end
+                end
+            end
+        end)
+        
+        return {
+            GetValue = function() return currentKey end,
+            SetValue = function(key) currentKey = key updateKeyDisplay() end,
+            Frame = frame
+        }
     end
 
     function tabProto:Section(opts)
@@ -1363,11 +1496,18 @@ do
         return setmetatable(t, {__index = controlCommon})
     end
     function tabProto:Slider(opts)
-        local s = makeSlider(self._scroll, opts.Title or "Slider", opts.Min or 0, opts.Max or 100, opts.Default or 0, opts.Callback, opts.Increment or 1)
+        -- Support both formats: separate Min/Max/Default or Value = { Min, Max, Default }
+        local minVal, maxVal, defaultVal = opts.Min or 0, opts.Max or 100, opts.Default or 0
+        if opts.Value and type(opts.Value) == "table" then
+            minVal = opts.Value.Min or minVal
+            maxVal = opts.Value.Max or maxVal
+            defaultVal = opts.Value.Default or defaultVal
+        end
+        local s = makeSlider(self._scroll, opts.Title or "Slider", minVal, maxVal, defaultVal, opts.Callback, opts.Step or opts.Increment or 1)
         return setmetatable(s, {__index = controlCommon})
     end
     function tabProto:Dropdown(opts)
-        local d = makeDropdown(self._scroll, opts.Title or "Dropdown", opts.Values or {}, opts.Default, opts.Callback)
+        local d = makeDropdown(self._scroll, opts.Title or "Dropdown", opts.Values or {}, opts.Default or opts.Value, opts.Callback, opts.Multi or opts.MultiSelect)
         return setmetatable(d, {__index = controlCommon})
     end
     function tabProto:Input(opts)
@@ -1378,6 +1518,95 @@ do
     end
     function tabProto:Colorpicker(opts)
         return makeColorpicker(self._scroll, opts.Title or "Color", opts.Default or Color3.fromRGB(255, 255, 255), opts.Callback)
+    end
+    
+    -- Keybind method for tabProto - creates a button that allows binding a key
+    function tabProto:Keybind(opts)
+        local currentKey = opts.Value or opts.Default or ""
+        local listening = false
+        
+        local frame = new("Frame", {
+            Size = UDim2.new(1, 0, 0, 40),
+            BackgroundColor3 = Color3.fromRGB(40, 40, 46),
+            BorderSizePixel = 0
+        })
+        round(frame, 10)
+        gradient(frame, Color3.fromRGB(48, 48, 60), Color3.fromRGB(38, 38, 44), 90)
+        stroke(frame, Color3.fromRGB(255, 255, 255), 1, 0.75)
+        frame.Parent = self._scroll
+        
+        local lbl = new("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(0.6, -12, 1, 0),
+            Position = UDim2.new(0, 12, 0, 0),
+            Font = Enum.Font.Gotham,
+            TextSize = 14,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextColor3 = Color3.fromRGB(230, 230, 230),
+            Text = opts.Title or "Keybind"
+        })
+        lbl.Parent = frame
+        
+        local keyBtn = new("TextButton", {
+            AutoButtonColor = false,
+            Size = UDim2.new(0.35, -8, 0, 28),
+            Position = UDim2.new(0.65, 0, 0.5, 0),
+            AnchorPoint = Vector2.new(0, 0.5),
+            BackgroundColor3 = Color3.fromRGB(50, 50, 58),
+            BorderSizePixel = 0,
+            Font = Enum.Font.GothamBold,
+            TextSize = 12,
+            TextColor3 = Color3.fromRGB(200, 200, 200),
+            Text = currentKey ~= "" and currentKey or "None"
+        })
+        round(keyBtn, 6)
+        stroke(keyBtn, Color3.fromRGB(255, 255, 255), 1, 0.5)
+        keyBtn.Parent = frame
+        
+        local function updateKeyDisplay()
+            keyBtn.Text = currentKey ~= "" and currentKey or "None"
+        end
+        
+        keyBtn.MouseButton1Click:Connect(function()
+            if listening then return end
+            listening = true
+            keyBtn.Text = "..."
+            keyBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 80)
+            
+            local conn
+            conn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+                if gameProcessed then return end
+                if input.UserInputType == Enum.UserInputType.Keyboard then
+                    currentKey = input.KeyCode.Name
+                    updateKeyDisplay()
+                    listening = false
+                    keyBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 58)
+                    conn:Disconnect()
+                elseif input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2 then
+                    listening = false
+                    keyBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 58)
+                    updateKeyDisplay()
+                    conn:Disconnect()
+                end
+            end)
+        end)
+        
+        UserInputService.InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end
+            if currentKey ~= "" and input.UserInputType == Enum.UserInputType.Keyboard then
+                if input.KeyCode.Name == currentKey then
+                    if opts.Callback then
+                        task.spawn(opts.Callback)
+                    end
+                end
+            end
+        end)
+        
+        return {
+            GetValue = function() return currentKey end,
+            SetValue = function(key) currentKey = key updateKeyDisplay() end,
+            Frame = frame
+        }
     end
 
     function windowProto:Tab(opts)
@@ -6407,7 +6636,13 @@ if GunTab then
         Value = {},
         Multi = true,
         Callback = function(selection)
-            local newSelection = selection or {}
+            -- Safety: ensure selection is a table
+            local newSelection = {}
+            if type(selection) == "table" then
+                newSelection = selection
+            elseif type(selection) == "string" and selection ~= "" then
+                newSelection = {selection}
+            end
             SelectedShootTypes = {}
             for _, v in ipairs(newSelection) do table.insert(SelectedShootTypes, tostring(v)) end
             -- Keep EnabledShootTypes consistent: if some types were deselected, disable them
@@ -6586,7 +6821,13 @@ if GunTab then
         Value = {},
         Multi = true,
         Callback = function(selection)
-            local newSelection = selection or {}
+            -- Safety: ensure selection is a table
+            local newSelection = {}
+            if type(selection) == "table" then
+                newSelection = selection
+            elseif type(selection) == "string" and selection ~= "" then
+                newSelection = {selection}
+            end
             SilentAimSelectedTypes = {}
             for _, v in ipairs(newSelection) do table.insert(SilentAimSelectedTypes, tostring(v)) end
             for _, t in ipairs(SilentAimZombieTypes) do
@@ -8184,7 +8425,13 @@ local espDropdown = ESPSection:Dropdown({
     Value = {},            -- default empty
     Multi = true,
     Callback = function(selection)
-        local newSelection = selection or {}
+        -- Safety: ensure selection is a table
+        local newSelection = {}
+        if type(selection) == "table" then
+            newSelection = selection
+        elseif type(selection) == "string" and selection ~= "" then
+            newSelection = {selection}
+        end
         -- normalize to array of strings
         local normalized = {}
         for _, v in ipairs(newSelection) do table.insert(normalized, tostring(v)) end
