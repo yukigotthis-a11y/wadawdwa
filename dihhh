@@ -360,7 +360,11 @@ do
 
         return {
             Get = function() return state end,
-            Set = function(v) setState(v, true) end,
+            Set = function(v, skipCallback)
+                if state == v then return end -- No change needed
+                setState(v, true)
+                if not skipCallback and cb then task.spawn(cb, state) end
+            end,
             Lock = function() locked = true btn.AutoButtonColor = false btn.BackgroundColor3 = Color3.fromRGB(30,30,30) end,
             Unlock = function() locked = false btn.BackgroundColor3 = Color3.fromRGB(40,40,46) end,
             Button = btn,
@@ -3358,7 +3362,12 @@ end
 _G.KatchiToggles.HeadHit = {
     element = HeadHitToggle,
     getState = function() return HeadHitEnabled end,
-    setState = function(v) HeadHitEnabled = v end
+    setState = function(v)
+        -- Use Set without skipCallback so the full callback runs
+        if HeadHitToggle and HeadHitToggle.Set then
+            HeadHitToggle:Set(v)
+        end
+    end
 }
 
     -- === Jump On Specific Animations (with WindUI Toggle) ===            
