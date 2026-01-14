@@ -1054,7 +1054,7 @@ do
             Font = Enum.Font.GothamBold,
             TextSize = 12,
             TextColor3 = Color3.fromRGB(255, 255, 255),
-            Text = "Run"
+            Text = "Press Button"
         })
         round(btn, 8)
         stroke(btn, Color3.fromRGB(255,255,255), 1, 0.5)
