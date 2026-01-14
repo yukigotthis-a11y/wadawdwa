@@ -280,11 +280,13 @@ do
         -- Track scrolling for toggle to prevent accidental clicks while scrolling
         local toggleTouchStart = nil
         local toggleIsScrolling = false
+        local handledByTouch = false
         
         btn.InputBegan:Connect(function(io)
             if io.UserInputType == Enum.UserInputType.Touch then
                 toggleTouchStart = io.Position
                 toggleIsScrolling = false
+                handledByTouch = true
             end
         end)
         
@@ -306,12 +308,14 @@ do
                 end
                 toggleTouchStart = nil
                 toggleIsScrolling = false
+                task.delay(0.05, function() handledByTouch = false end)
             end
         end)
 
         -- Desktop click (mouse doesn't have scroll conflict)
         btn.MouseButton1Click:Connect(function()
             if locked then return end
+            if handledByTouch then return end -- Prevent double-fire on mobile
             state = not state
             setState(state, true) -- animate on click
             if cb then task.spawn(cb, state) end
@@ -410,7 +414,15 @@ do
         }
     end
 
-    local function makeDropdown(parent, label, values, default, cb)
+    local function makeDropdown(parent, label, values, default, cb, multiSelect)
+        -- Main container that expands when dropdown opens
+        local container = new("Frame", {
+            Size = UDim2.new(1, 0, 0, 40),
+            BackgroundTransparency = 1,
+            ClipsDescendants = false
+        })
+        container.Parent = parent
+        
         local frame = new("Frame", {
             Size = UDim2.new(1, 0, 0, 40),
             BackgroundColor3 = Color3.fromRGB(40, 40, 46),
@@ -419,11 +431,11 @@ do
         round(frame, 10)
         gradient(frame, Color3.fromRGB(48, 48, 60), Color3.fromRGB(38, 38, 44), 90)
         stroke(frame, Color3.fromRGB(255,255,255), 1, 0.75)
-        frame.Parent = parent
+        frame.Parent = container
 
         local lbl = new("TextLabel", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(0.5, -12, 1, 0),
+            Size = UDim2.new(0.5, -12, 0, 40),
             Position = UDim2.new(0, 12, 0, 0),
             Font = Enum.Font.Gotham,
             TextSize = 14,
@@ -432,10 +444,22 @@ do
             Text = label
         })
         lbl.Parent = frame
+        
+        -- Arrow indicator
+        local arrow = new("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(0, 20, 0, 40),
+            Position = UDim2.new(1, -28, 0, 0),
+            Font = Enum.Font.GothamBold,
+            TextSize = 12,
+            TextColor3 = Color3.fromRGB(180, 180, 180),
+            Text = "▼"
+        })
+        arrow.Parent = frame
 
         local valLbl = new("TextLabel", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(0.5, -12, 1, 0),
+            Size = UDim2.new(0.5, -40, 0, 40),
             Position = UDim2.new(0.5, 0, 0, 0),
             Font = Enum.Font.Gotham,
             TextSize = 14,
@@ -447,28 +471,64 @@ do
 
         local open = false
         local locked = false
+        local selected = {} -- For multi-select: {[value] = true/false}
+        
+        -- Initialize selected from default
+        if multiSelect and type(default) == "table" then
+            for _, v in ipairs(default) do
+                selected[tostring(v)] = true
+            end
+        end
         local current = valLbl.Text
 
         local dropdownHolder = new("ScrollingFrame", {
             Size = UDim2.new(1, 0, 0, 0),
-            Position = UDim2.new(0, 0, 1, 4),
+            Position = UDim2.new(0, 0, 0, 44),
             BackgroundColor3 = Color3.fromRGB(28, 28, 32),
             BorderSizePixel = 0,
             Visible = false,
             ClipsDescendants = true,
-            ZIndex = 100,
             ScrollBarThickness = 3,
             ScrollingDirection = Enum.ScrollingDirection.Y,
             AutomaticCanvasSize = Enum.AutomaticSize.Y,
-            CanvasSize = UDim2.new(0, 0, 0, 0)
+            CanvasSize = UDim2.new(0, 0, 0, 0),
+            BackgroundTransparency = 1
         })
         round(dropdownHolder, 10)
         stroke(dropdownHolder, Color3.fromRGB(255,255,255), 1, 0.8)
-        dropdownHolder.Parent = frame
+        dropdownHolder.Parent = container
+        
+        local dropdownHeight = 0
+        local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        
+        local function getSelectedText()
+            if not multiSelect then return current end
+            local sel = {}
+            for _, v in ipairs(values or {}) do
+                if selected[tostring(v)] then
+                    table.insert(sel, tostring(v))
+                end
+            end
+            return #sel > 0 and table.concat(sel, ", ") or "None"
+        end
+        
+        local function updateItemVisuals()
+            for _, child in ipairs(dropdownHolder:GetChildren()) do
+                if child:IsA("TextButton") then
+                    local val = child:GetAttribute("Value")
+                    if multiSelect and selected[val] then
+                        child.BackgroundColor3 = Color3.fromRGB(60, 75, 90)
+                        child.Text = "✓ " .. val
+                    else
+                        child.BackgroundColor3 = Color3.fromRGB(38, 38, 44)
+                        child.Text = val
+                    end
+                end
+            end
+        end
 
         local function rebuild()
             dropdownHolder:ClearAllChildren()
-            -- Create new UIListLayout each time (old one is destroyed with ClearAllChildren)
             local newList = new("UIListLayout", {
                 FillDirection = Enum.FillDirection.Vertical,
                 Padding = UDim.new(0, 2),
@@ -486,37 +546,44 @@ do
             listPad.Parent = dropdownHolder
             
             for _, v in ipairs(values or {}) do
+                local vStr = tostring(v)
+                local displayText = (multiSelect and selected[vStr]) and ("✓ " .. vStr) or vStr
                 local item = new("TextButton", {
                     AutoButtonColor = false,
                     Size = UDim2.new(1, -8, 0, 28),
-                    BackgroundColor3 = Color3.fromRGB(38, 38, 44),
+                    BackgroundColor3 = (multiSelect and selected[vStr]) and Color3.fromRGB(60, 75, 90) or Color3.fromRGB(38, 38, 44),
                     BorderSizePixel = 0,
                     Font = Enum.Font.Gotham,
                     TextSize = 14,
                     TextColor3 = Color3.fromRGB(230, 230, 230),
-                    Text = tostring(v),
-                    ZIndex = 101
+                    Text = displayText
                 })
                 round(item, 8)
+                item:SetAttribute("Value", vStr)
                 item.Parent = dropdownHolder
                 
-                -- Track if we're scrolling vs clicking
                 local touchStart = nil
                 local isScrolling = false
+                local handledByTouch = false
                 
-                -- Hover effects
                 item.MouseEnter:Connect(function()
-                    item.BackgroundColor3 = Color3.fromRGB(255, 85, 85)
+                    if not (multiSelect and selected[vStr]) then
+                        item.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
+                    end
                 end)
                 item.MouseLeave:Connect(function()
-                    item.BackgroundColor3 = Color3.fromRGB(38, 38, 44)
+                    if multiSelect and selected[vStr] then
+                        item.BackgroundColor3 = Color3.fromRGB(60, 75, 90)
+                    else
+                        item.BackgroundColor3 = Color3.fromRGB(38, 38, 44)
+                    end
                 end)
                 
-                -- Use InputBegan/InputEnded for better scroll detection
                 item.InputBegan:Connect(function(io)
                     if io.UserInputType == Enum.UserInputType.Touch then
                         touchStart = io.Position
                         isScrolling = false
+                        handledByTouch = true
                     end
                 end)
                 
@@ -529,47 +596,87 @@ do
                     end
                 end)
                 
+                local function selectItem()
+                    if locked then return end
+                    if multiSelect then
+                        selected[vStr] = not selected[vStr]
+                        updateItemVisuals()
+                        current = getSelectedText()
+                        valLbl.Text = current
+                        local selectedList = {}
+                        for _, val in ipairs(values or {}) do
+                            if selected[tostring(val)] then
+                                table.insert(selectedList, val)
+                            end
+                        end
+                        if cb then task.spawn(cb, selectedList) end
+                    else
+                        current = vStr
+                        valLbl.Text = current
+                        if cb then task.spawn(cb, current) end
+                    end
+                end
+                
                 item.InputEnded:Connect(function(io)
                     if io.UserInputType == Enum.UserInputType.Touch then
-                        if not isScrolling and not locked then
-                            current = tostring(v)
-                            valLbl.Text = current
-                            if cb then task.spawn(cb, current) end
-                            dropdownHolder.Visible = false
-                            open = false
+                        if not isScrolling then
+                            selectItem()
                         end
                         touchStart = nil
                         isScrolling = false
+                        task.delay(0.05, function() handledByTouch = false end)
                     end
                 end)
                 
-                -- Desktop click (mouse doesn't scroll)
                 item.MouseButton1Click:Connect(function()
-                    if locked then return end
-                    current = tostring(v)
-                    valLbl.Text = current
-                    if cb then task.spawn(cb, current) end
-                    dropdownHolder.Visible = false
-                    open = false
+                    if handledByTouch then return end
+                    selectItem()
                 end)
             end
-            dropdownHolder.Size = UDim2.new(1, 0, 0, math.min((#(values or {}) * 32) + 12, 200))
+            dropdownHeight = math.min((#(values or {}) * 32) + 12, 180)
+            dropdownHolder.Size = UDim2.new(1, 0, 0, dropdownHeight)
         end
         rebuild()
+        
+        local function setOpen(shouldOpen)
+            if shouldOpen == open then return end
+            open = shouldOpen
+            
+            if open then
+                dropdownHolder.Visible = true
+                dropdownHolder.BackgroundTransparency = 1
+                arrow.Text = "▲"
+                -- Animate container expansion and fade in
+                local expandTween = TweenService:Create(container, tweenInfo, {Size = UDim2.new(1, 0, 0, 44 + dropdownHeight + 4)})
+                local fadeTween = TweenService:Create(dropdownHolder, tweenInfo, {BackgroundTransparency = 0})
+                expandTween:Play()
+                fadeTween:Play()
+            else
+                arrow.Text = "▼"
+                -- Animate container collapse and fade out
+                local collapseTween = TweenService:Create(container, tweenInfo, {Size = UDim2.new(1, 0, 0, 40)})
+                local fadeTween = TweenService:Create(dropdownHolder, tweenInfo, {BackgroundTransparency = 1})
+                collapseTween:Play()
+                fadeTween:Play()
+                fadeTween.Completed:Connect(function()
+                    if not open then
+                        dropdownHolder.Visible = false
+                    end
+                end)
+            end
+        end
 
         -- Track scrolling for dropdown toggle
         local frameTouchStart = nil
         local frameIsScrolling = false
+        local frameHandledByTouch = false
         
         frame.InputBegan:Connect(function(io)
             if locked then return end
             if io.UserInputType == Enum.UserInputType.Touch then
                 frameTouchStart = io.Position
                 frameIsScrolling = false
-            elseif io.UserInputType == Enum.UserInputType.MouseButton1 then
-                -- Desktop: immediate toggle
-                open = not open
-                dropdownHolder.Visible = open
+                frameHandledByTouch = true
             end
         end)
         
@@ -585,18 +692,48 @@ do
         frame.InputEnded:Connect(function(io)
             if io.UserInputType == Enum.UserInputType.Touch then
                 if not frameIsScrolling and not locked then
-                    open = not open
-                    dropdownHolder.Visible = open
+                    setOpen(not open)
                 end
                 frameTouchStart = nil
                 frameIsScrolling = false
+                task.delay(0.05, function() frameHandledByTouch = false end)
             end
+        end)
+        
+        -- Desktop click
+        local clickBtn = new("TextButton", {
+            Size = UDim2.new(1, 0, 0, 40),
+            BackgroundTransparency = 1,
+            Text = ""
+        })
+        clickBtn.Parent = frame
+        clickBtn.MouseButton1Click:Connect(function()
+            if locked or frameHandledByTouch then return end
+            setOpen(not open)
         end)
 
         return {
-            GetValue = function() return current end,
+            GetValue = function() 
+                if multiSelect then
+                    local sel = {}
+                    for _, v in ipairs(values or {}) do
+                        if selected[tostring(v)] then
+                            table.insert(sel, v)
+                        end
+                    end
+                    return sel
+                end
+                return current 
+            end,
             SetValue = function(v) 
-                if type(v) == "table" then
+                if multiSelect and type(v) == "table" then
+                    selected = {}
+                    for _, val in ipairs(v) do
+                        selected[tostring(val)] = true
+                    end
+                    current = getSelectedText()
+                    updateItemVisuals()
+                elseif type(v) == "table" then
                     current = table.concat(v, ", ")
                 else
                     current = tostring(v)
@@ -604,9 +741,10 @@ do
                 valLbl.Text = current 
             end,
             SetValues = function(vs) values = vs rebuild() end,
-            Lock = function() locked = true frame.BackgroundColor3 = Color3.fromRGB(30,30,30) dropdownHolder.Visible=false open=false end,
+            Lock = function() locked = true frame.BackgroundColor3 = Color3.fromRGB(30,30,30) setOpen(false) end,
             Unlock = function() locked = false frame.BackgroundColor3 = Color3.fromRGB(40,40,46) end,
-            Frame = frame,
+            Close = function() setOpen(false) end,
+            Frame = container,
         }
     end
 
@@ -752,7 +890,7 @@ do
         local btn = new("TextButton", {
             AutoButtonColor = false,
             Size = UDim2.new(1, 0, 0, 36),
-            BackgroundColor3 = Color3.fromRGB(255, 85, 85),
+            BackgroundColor3 = Color3.fromRGB(55, 55, 65),
             BorderSizePixel = 0,
             Font = Enum.Font.GothamBold,
             TextSize = 15,
@@ -760,26 +898,28 @@ do
             Text = label
         })
         round(btn, 10)
-        gradient(btn, Color3.fromRGB(255, 95, 95), Color3.fromRGB(200, 60, 60), 90)
+        gradient(btn, Color3.fromRGB(65, 65, 80), Color3.fromRGB(45, 45, 55), 90)
         stroke(btn, Color3.fromRGB(255,255,255), 1, 0.6)
         btn.Parent = parent
 
         -- Hover effects
         btn.MouseEnter:Connect(function()
-            btn.BackgroundColor3 = Color3.fromRGB(255, 110, 110)
+            btn.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
         end)
         btn.MouseLeave:Connect(function()
-            btn.BackgroundColor3 = Color3.fromRGB(255, 85, 85)
+            btn.BackgroundColor3 = Color3.fromRGB(55, 55, 65)
         end)
 
         -- Track scrolling for button to prevent accidental clicks
         local btnTouchStart = nil
         local btnIsScrolling = false
+        local btnHandledByTouch = false
         
         btn.InputBegan:Connect(function(io)
             if io.UserInputType == Enum.UserInputType.Touch then
                 btnTouchStart = io.Position
                 btnIsScrolling = false
+                btnHandledByTouch = true
             end
         end)
         
@@ -799,11 +939,13 @@ do
                 end
                 btnTouchStart = nil
                 btnIsScrolling = false
+                task.delay(0.05, function() btnHandledByTouch = false end)
             end
         end)
 
         -- Desktop click
         btn.MouseButton1Click:Connect(function()
+            if btnHandledByTouch then return end
             if cb then task.spawn(cb) end
         end)
 
@@ -814,6 +956,15 @@ do
         local currentColor = default or Color3.fromRGB(255, 255, 255)
         local open = false
         local locked = false
+        local pickerHeight = 140
+        
+        -- Main container that expands when colorpicker opens
+        local container = new("Frame", {
+            Size = UDim2.new(1, 0, 0, 40),
+            BackgroundTransparency = 1,
+            ClipsDescendants = false
+        })
+        container.Parent = parent
         
         local frame = new("Frame", {
             Size = UDim2.new(1, 0, 0, 40),
@@ -823,11 +974,11 @@ do
         round(frame, 10)
         gradient(frame, Color3.fromRGB(48, 48, 60), Color3.fromRGB(38, 38, 44), 90)
         stroke(frame, Color3.fromRGB(255, 255, 255), 1, 0.75)
-        frame.Parent = parent
+        frame.Parent = container
 
         local lbl = new("TextLabel", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(1, -60, 1, 0),
+            Size = UDim2.new(1, -60, 0, 40),
             Position = UDim2.new(0, 12, 0, 0),
             Font = Enum.Font.Gotham,
             TextSize = 14,
@@ -849,30 +1000,28 @@ do
         stroke(colorPreview, Color3.fromRGB(255, 255, 255), 1, 0.5)
         colorPreview.Parent = frame
 
-        -- Dropdown panel for color selection
+        -- Picker panel for color selection (inside container, below frame)
         local pickerPanel = new("Frame", {
-            Size = UDim2.new(1, 0, 0, 140),
-            Position = UDim2.new(0, 0, 1, 4),
+            Size = UDim2.new(1, 0, 0, pickerHeight),
+            Position = UDim2.new(0, 0, 0, 44),
             BackgroundColor3 = Color3.fromRGB(28, 28, 32),
             BorderSizePixel = 0,
             Visible = false,
             ClipsDescendants = true,
-            ZIndex = 10
+            BackgroundTransparency = 1
         })
         round(pickerPanel, 10)
         stroke(pickerPanel, Color3.fromRGB(255, 255, 255), 1, 0.8)
-        pickerPanel.Parent = frame
+        pickerPanel.Parent = container
 
         -- Hue slider (horizontal rainbow bar)
         local hueBar = new("Frame", {
             Size = UDim2.new(1, -16, 0, 20),
             Position = UDim2.new(0, 8, 0, 8),
             BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-            BorderSizePixel = 0,
-            ZIndex = 11
+            BorderSizePixel = 0
         })
         round(hueBar, 4)
-        pickerPanel.Parent = frame
         hueBar.Parent = pickerPanel
 
         -- Rainbow gradient for hue
@@ -894,8 +1043,7 @@ do
             Size = UDim2.new(0, 6, 1, 4),
             Position = UDim2.new(0, 0, 0, -2),
             BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-            BorderSizePixel = 0,
-            ZIndex = 12
+            BorderSizePixel = 0
         })
         round(hueSlider, 3)
         stroke(hueSlider, Color3.fromRGB(0, 0, 0), 1, 0.5)
@@ -906,8 +1054,7 @@ do
             Size = UDim2.new(1, -16, 0, 80),
             Position = UDim2.new(0, 8, 0, 34),
             BackgroundColor3 = Color3.fromRGB(255, 0, 0),
-            BorderSizePixel = 0,
-            ZIndex = 11
+            BorderSizePixel = 0
         })
         round(svBox, 6)
         svBox.Parent = pickerPanel
@@ -927,8 +1074,7 @@ do
         local valOverlay = new("Frame", {
             Size = UDim2.new(1, 0, 1, 0),
             BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-            BorderSizePixel = 0,
-            ZIndex = 12
+            BorderSizePixel = 0
         })
         round(valOverlay, 6)
         valOverlay.Parent = svBox
@@ -948,8 +1094,7 @@ do
             Size = UDim2.new(0, 10, 0, 10),
             Position = UDim2.new(1, -5, 0, -5),
             BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-            BorderSizePixel = 0,
-            ZIndex = 13
+            BorderSizePixel = 0
         })
         round(svCursor, 5)
         stroke(svCursor, Color3.fromRGB(0, 0, 0), 1.5, 0.3)
@@ -957,6 +1102,7 @@ do
 
         -- State
         local h, s, v = 0, 1, 1
+        local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         
         -- Initialize from default color
         local function initFromColor(col)
@@ -991,6 +1137,32 @@ do
             if cb then task.spawn(cb, col) end
         end
         updateColor()
+        
+        local function setOpen(shouldOpen)
+            if shouldOpen == open then return end
+            open = shouldOpen
+            
+            if open then
+                pickerPanel.Visible = true
+                pickerPanel.BackgroundTransparency = 1
+                -- Animate container expansion and fade in
+                local expandTween = TweenService:Create(container, tweenInfo, {Size = UDim2.new(1, 0, 0, 44 + pickerHeight + 4)})
+                local fadeTween = TweenService:Create(pickerPanel, tweenInfo, {BackgroundTransparency = 0})
+                expandTween:Play()
+                fadeTween:Play()
+            else
+                -- Animate container collapse and fade out
+                local collapseTween = TweenService:Create(container, tweenInfo, {Size = UDim2.new(1, 0, 0, 40)})
+                local fadeTween = TweenService:Create(pickerPanel, tweenInfo, {BackgroundTransparency = 1})
+                collapseTween:Play()
+                fadeTween:Play()
+                fadeTween.Completed:Connect(function()
+                    if not open then
+                        pickerPanel.Visible = false
+                    end
+                end)
+            end
+        end
 
         -- Hue dragging
         local draggingHue = false
@@ -1064,15 +1236,14 @@ do
         -- Toggle picker with scroll detection
         local cpTouchStart = nil
         local cpIsScrolling = false
+        local cpHandledByTouch = false
         
         frame.InputBegan:Connect(function(io)
             if locked then return end
             if io.UserInputType == Enum.UserInputType.Touch then
                 cpTouchStart = io.Position
                 cpIsScrolling = false
-            elseif io.UserInputType == Enum.UserInputType.MouseButton1 then
-                open = not open
-                pickerPanel.Visible = open
+                cpHandledByTouch = true
             end
         end)
         
@@ -1088,12 +1259,24 @@ do
         frame.InputEnded:Connect(function(io)
             if io.UserInputType == Enum.UserInputType.Touch then
                 if not cpIsScrolling and not locked then
-                    open = not open
-                    pickerPanel.Visible = open
+                    setOpen(not open)
                 end
                 cpTouchStart = nil
                 cpIsScrolling = false
+                task.delay(0.05, function() cpHandledByTouch = false end)
             end
+        end)
+        
+        -- Desktop click button
+        local clickBtn = new("TextButton", {
+            Size = UDim2.new(1, 0, 0, 40),
+            BackgroundTransparency = 1,
+            Text = ""
+        })
+        clickBtn.Parent = frame
+        clickBtn.MouseButton1Click:Connect(function()
+            if locked or cpHandledByTouch then return end
+            setOpen(not open)
         end)
 
         return {
@@ -1103,9 +1286,10 @@ do
                 initFromColor(col)
                 updateColor()
             end,
-            Lock = function() locked = true frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30) pickerPanel.Visible = false open = false end,
+            Lock = function() locked = true frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30) setOpen(false) end,
             Unlock = function() locked = false frame.BackgroundColor3 = Color3.fromRGB(40, 40, 46) end,
-            Frame = frame,
+            Close = function() setOpen(false) end,
+            Frame = container,
         }
     end
 
@@ -1121,7 +1305,7 @@ do
         return setmetatable(s, {__index = controlCommon})
     end
     function sectionProto:Dropdown(opts)
-        local d = makeDropdown(self._container, opts.Title or "Dropdown", opts.Values or {}, opts.Default, opts.Callback)
+        local d = makeDropdown(self._container, opts.Title or "Dropdown", opts.Values or {}, opts.Default, opts.Callback, opts.MultiSelect)
         return setmetatable(d, {__index = controlCommon})
     end
     function sectionProto:Input(opts)
