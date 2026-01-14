@@ -658,6 +658,279 @@ do
         return btn
     end
 
+    local function makeColorpicker(parent, label, default, cb)
+        local currentColor = default or Color3.fromRGB(255, 255, 255)
+        local open = false
+        local locked = false
+        
+        local frame = new("Frame", {
+            Size = UDim2.new(1, 0, 0, 40),
+            BackgroundColor3 = Color3.fromRGB(40, 40, 46),
+            BorderSizePixel = 0
+        })
+        round(frame, 10)
+        gradient(frame, Color3.fromRGB(48, 48, 60), Color3.fromRGB(38, 38, 44), 90)
+        stroke(frame, Color3.fromRGB(255, 255, 255), 1, 0.75)
+        frame.Parent = parent
+
+        local lbl = new("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, -60, 1, 0),
+            Position = UDim2.new(0, 12, 0, 0),
+            Font = Enum.Font.Gotham,
+            TextSize = 14,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextColor3 = Color3.fromRGB(230, 230, 230),
+            Text = label
+        })
+        lbl.Parent = frame
+
+        -- Color preview box
+        local colorPreview = new("Frame", {
+            Size = UDim2.new(0, 36, 0, 24),
+            Position = UDim2.new(1, -48, 0.5, 0),
+            AnchorPoint = Vector2.new(0, 0.5),
+            BackgroundColor3 = currentColor,
+            BorderSizePixel = 0
+        })
+        round(colorPreview, 6)
+        stroke(colorPreview, Color3.fromRGB(255, 255, 255), 1, 0.5)
+        colorPreview.Parent = frame
+
+        -- Dropdown panel for color selection
+        local pickerPanel = new("Frame", {
+            Size = UDim2.new(1, 0, 0, 140),
+            Position = UDim2.new(0, 0, 1, 4),
+            BackgroundColor3 = Color3.fromRGB(28, 28, 32),
+            BorderSizePixel = 0,
+            Visible = false,
+            ClipsDescendants = true,
+            ZIndex = 10
+        })
+        round(pickerPanel, 10)
+        stroke(pickerPanel, Color3.fromRGB(255, 255, 255), 1, 0.8)
+        pickerPanel.Parent = frame
+
+        -- Hue slider (horizontal rainbow bar)
+        local hueBar = new("Frame", {
+            Size = UDim2.new(1, -16, 0, 20),
+            Position = UDim2.new(0, 8, 0, 8),
+            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+            BorderSizePixel = 0,
+            ZIndex = 11
+        })
+        round(hueBar, 4)
+        pickerPanel.Parent = frame
+        hueBar.Parent = pickerPanel
+
+        -- Rainbow gradient for hue
+        local hueGradient = new("UIGradient", {
+            Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+                ColorSequenceKeypoint.new(0.17, Color3.fromRGB(255, 255, 0)),
+                ColorSequenceKeypoint.new(0.33, Color3.fromRGB(0, 255, 0)),
+                ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 255)),
+                ColorSequenceKeypoint.new(0.67, Color3.fromRGB(0, 0, 255)),
+                ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255, 0, 255)),
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 0))
+            }),
+            Rotation = 0
+        })
+        hueGradient.Parent = hueBar
+
+        local hueSlider = new("Frame", {
+            Size = UDim2.new(0, 6, 1, 4),
+            Position = UDim2.new(0, 0, 0, -2),
+            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+            BorderSizePixel = 0,
+            ZIndex = 12
+        })
+        round(hueSlider, 3)
+        stroke(hueSlider, Color3.fromRGB(0, 0, 0), 1, 0.5)
+        hueSlider.Parent = hueBar
+
+        -- Saturation/Value box
+        local svBox = new("Frame", {
+            Size = UDim2.new(1, -16, 0, 80),
+            Position = UDim2.new(0, 8, 0, 34),
+            BackgroundColor3 = Color3.fromRGB(255, 0, 0),
+            BorderSizePixel = 0,
+            ZIndex = 11
+        })
+        round(svBox, 6)
+        svBox.Parent = pickerPanel
+
+        -- White to color gradient (horizontal)
+        local satGradient = new("UIGradient", {
+            Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 255, 255)),
+            Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 1),
+                NumberSequenceKeypoint.new(1, 0)
+            }),
+            Rotation = 0
+        })
+        satGradient.Parent = svBox
+
+        -- Black overlay (vertical)
+        local valOverlay = new("Frame", {
+            Size = UDim2.new(1, 0, 1, 0),
+            BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+            BorderSizePixel = 0,
+            ZIndex = 12
+        })
+        round(valOverlay, 6)
+        valOverlay.Parent = svBox
+
+        local valGradient = new("UIGradient", {
+            Color = ColorSequence.new(Color3.fromRGB(0, 0, 0), Color3.fromRGB(0, 0, 0)),
+            Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 1),
+                NumberSequenceKeypoint.new(1, 0)
+            }),
+            Rotation = 90
+        })
+        valGradient.Parent = valOverlay
+
+        -- SV cursor
+        local svCursor = new("Frame", {
+            Size = UDim2.new(0, 10, 0, 10),
+            Position = UDim2.new(1, -5, 0, -5),
+            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+            BorderSizePixel = 0,
+            ZIndex = 13
+        })
+        round(svCursor, 5)
+        stroke(svCursor, Color3.fromRGB(0, 0, 0), 1.5, 0.3)
+        svCursor.Parent = svBox
+
+        -- State
+        local h, s, v = 0, 1, 1
+        
+        -- Initialize from default color
+        local function initFromColor(col)
+            local r, g, b = col.R, col.G, col.B
+            local max = math.max(r, g, b)
+            local min = math.min(r, g, b)
+            local delta = max - min
+            
+            v = max
+            s = max == 0 and 0 or (delta / max)
+            
+            if delta == 0 then
+                h = 0
+            elseif max == r then
+                h = ((g - b) / delta) % 6
+            elseif max == g then
+                h = ((b - r) / delta) + 2
+            else
+                h = ((r - g) / delta) + 4
+            end
+            h = h / 6
+        end
+        initFromColor(currentColor)
+
+        local function updateColor()
+            local col = Color3.fromHSV(h, s, v)
+            currentColor = col
+            colorPreview.BackgroundColor3 = col
+            svBox.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
+            hueSlider.Position = UDim2.new(h, -3, 0, -2)
+            svCursor.Position = UDim2.new(s, -5, 1 - v, -5)
+            if cb then task.spawn(cb, col) end
+        end
+        updateColor()
+
+        -- Hue dragging
+        local draggingHue = false
+        hueBar.InputBegan:Connect(function(io)
+            if locked then return end
+            if io.UserInputType == Enum.UserInputType.MouseButton1 or io.UserInputType == Enum.UserInputType.Touch then
+                draggingHue = true
+                local rel = (io.Position.X - hueBar.AbsolutePosition.X) / hueBar.AbsoluteSize.X
+                h = math.clamp(rel, 0, 1)
+                updateColor()
+            end
+        end)
+        hueBar.InputEnded:Connect(function(io)
+            if io.UserInputType == Enum.UserInputType.MouseButton1 or io.UserInputType == Enum.UserInputType.Touch then
+                draggingHue = false
+            end
+        end)
+
+        -- SV dragging
+        local draggingSV = false
+        svBox.InputBegan:Connect(function(io)
+            if locked then return end
+            if io.UserInputType == Enum.UserInputType.MouseButton1 or io.UserInputType == Enum.UserInputType.Touch then
+                draggingSV = true
+                local relX = (io.Position.X - svBox.AbsolutePosition.X) / svBox.AbsoluteSize.X
+                local relY = (io.Position.Y - svBox.AbsolutePosition.Y) / svBox.AbsoluteSize.Y
+                s = math.clamp(relX, 0, 1)
+                v = math.clamp(1 - relY, 0, 1)
+                updateColor()
+            end
+        end)
+        svBox.InputEnded:Connect(function(io)
+            if io.UserInputType == Enum.UserInputType.MouseButton1 or io.UserInputType == Enum.UserInputType.Touch then
+                draggingSV = false
+            end
+        end)
+        valOverlay.InputBegan:Connect(function(io)
+            if locked then return end
+            if io.UserInputType == Enum.UserInputType.MouseButton1 or io.UserInputType == Enum.UserInputType.Touch then
+                draggingSV = true
+                local relX = (io.Position.X - svBox.AbsolutePosition.X) / svBox.AbsoluteSize.X
+                local relY = (io.Position.Y - svBox.AbsolutePosition.Y) / svBox.AbsoluteSize.Y
+                s = math.clamp(relX, 0, 1)
+                v = math.clamp(1 - relY, 0, 1)
+                updateColor()
+            end
+        end)
+        valOverlay.InputEnded:Connect(function(io)
+            if io.UserInputType == Enum.UserInputType.MouseButton1 or io.UserInputType == Enum.UserInputType.Touch then
+                draggingSV = false
+            end
+        end)
+
+        -- Global input for dragging
+        UserInputService.InputChanged:Connect(function(io)
+            if io.UserInputType == Enum.UserInputType.MouseMovement or io.UserInputType == Enum.UserInputType.Touch then
+                if draggingHue then
+                    local rel = (io.Position.X - hueBar.AbsolutePosition.X) / hueBar.AbsoluteSize.X
+                    h = math.clamp(rel, 0, 1)
+                    updateColor()
+                elseif draggingSV then
+                    local relX = (io.Position.X - svBox.AbsolutePosition.X) / svBox.AbsoluteSize.X
+                    local relY = (io.Position.Y - svBox.AbsolutePosition.Y) / svBox.AbsoluteSize.Y
+                    s = math.clamp(relX, 0, 1)
+                    v = math.clamp(1 - relY, 0, 1)
+                    updateColor()
+                end
+            end
+        end)
+
+        -- Toggle picker
+        frame.InputBegan:Connect(function(io)
+            if locked then return end
+            if io.UserInputType == Enum.UserInputType.MouseButton1 or io.UserInputType == Enum.UserInputType.Touch then
+                open = not open
+                pickerPanel.Visible = open
+            end
+        end)
+
+        return {
+            Get = function() return currentColor end,
+            Set = function(col)
+                currentColor = col
+                initFromColor(col)
+                updateColor()
+            end,
+            Lock = function() locked = true frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30) pickerPanel.Visible = false open = false end,
+            Unlock = function() locked = false frame.BackgroundColor3 = Color3.fromRGB(40, 40, 46) end,
+            Frame = frame,
+        }
+    end
+
     function sectionProto:Paragraph(opts)
         return makeParagraph(self._container, opts.Title, opts.Desc, opts.Buttons)
     end
@@ -678,6 +951,9 @@ do
     end
     function sectionProto:Button(opts)
         return makeButton(self._container, opts.Title or "Button", opts.Callback)
+    end
+    function sectionProto:Colorpicker(opts)
+        return makeColorpicker(self._container, opts.Title or "Color", opts.Default or Color3.fromRGB(255, 255, 255), opts.Callback)
     end
 
     function tabProto:Section(opts)
@@ -737,6 +1013,9 @@ do
     end
     function tabProto:Button(opts)
         return makeButton(self._scroll, opts.Title or "Button", opts.Callback)
+    end
+    function tabProto:Colorpicker(opts)
+        return makeColorpicker(self._scroll, opts.Title or "Color", opts.Default or Color3.fromRGB(255, 255, 255), opts.Callback)
     end
 
     function windowProto:Tab(opts)
@@ -1131,20 +1410,20 @@ do
             end)
         end)
 
-        -- Resize handle (bottom-right corner)
+        -- Resize handle (bottom-right corner) - larger for easier grabbing
         local resizeHandle = new("TextButton", {
-            Size = UDim2.new(0, 16, 0, 16),
-            Position = UDim2.new(1, -16, 1, -16),
+            Size = UDim2.new(0, 32, 0, 32),
+            Position = UDim2.new(1, -32, 1, -32),
             BackgroundTransparency = 1,
             Text = "",
             AutoButtonColor = false
         })
         resizeHandle.Parent = frame
         
-        -- Draw resize indicator (diagonal lines)
+        -- Draw resize indicator (diagonal lines) - repositioned for larger handle
         local resizeLine1 = new("Frame", {
-            Size = UDim2.new(0, 10, 0, 1),
-            Position = UDim2.new(0, 4, 0, 10),
+            Size = UDim2.new(0, 14, 0, 2),
+            Position = UDim2.new(0, 14, 0, 22),
             Rotation = 45,
             BackgroundColor3 = Color3.fromRGB(255, 255, 255),
             BackgroundTransparency = 0.5,
@@ -1153,14 +1432,24 @@ do
         resizeLine1.Parent = resizeHandle
         
         local resizeLine2 = new("Frame", {
-            Size = UDim2.new(0, 6, 0, 1),
-            Position = UDim2.new(0, 8, 0, 10),
+            Size = UDim2.new(0, 10, 0, 2),
+            Position = UDim2.new(0, 18, 0, 22),
             Rotation = 45,
             BackgroundColor3 = Color3.fromRGB(255, 255, 255),
             BackgroundTransparency = 0.5,
             BorderSizePixel = 0
         })
         resizeLine2.Parent = resizeHandle
+        
+        local resizeLine3 = new("Frame", {
+            Size = UDim2.new(0, 6, 0, 2),
+            Position = UDim2.new(0, 22, 0, 22),
+            Rotation = 45,
+            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+            BackgroundTransparency = 0.5,
+            BorderSizePixel = 0
+        })
+        resizeLine3.Parent = resizeHandle
         
         -- Resize logic
         local resizing = false
@@ -1193,10 +1482,12 @@ do
         resizeHandle.MouseEnter:Connect(function()
             resizeLine1.BackgroundTransparency = 0.2
             resizeLine2.BackgroundTransparency = 0.2
+            resizeLine3.BackgroundTransparency = 0.2
         end)
         resizeHandle.MouseLeave:Connect(function()
             resizeLine1.BackgroundTransparency = 0.5
             resizeLine2.BackgroundTransparency = 0.5
+            resizeLine3.BackgroundTransparency = 0.5
         end)
 
         -- Tab list (left sidebar)
